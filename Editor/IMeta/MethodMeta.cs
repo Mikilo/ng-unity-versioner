@@ -32,15 +32,12 @@ namespace NGUnityVersioner
 		private string[]	parametersName;
 		public string[]		ParametersName { get { return this.parametersName; } }
 
-		public readonly AssemblyMeta	root;
-
-		public	MethodMeta(AssemblyMeta root, TypeMeta declaringType, BinaryReader reader)
+		public	MethodMeta(IStringTable stringTable, TypeMeta declaringType, BinaryReader reader)
 		{
-			this.root = root;
-			this.name = root.FetchString(reader.ReadInt24());
+			this.name = stringTable.FetchString(reader.ReadInt24());
 
 			this.declaringType = declaringType.FullName;
-			this.returnType = root.FetchString(reader.ReadInt24());
+			this.returnType = stringTable.FetchString(reader.ReadInt24());
 
 			byte	flags = reader.ReadByte();
 
@@ -53,17 +50,16 @@ namespace NGUnityVersioner
 
 			for (int i = 0, max = length; i < max; ++i)
 			{
-				this.parametersType[i] = root.FetchString(reader.ReadInt24());
-				this.parametersName[i] = root.FetchString(reader.ReadInt24());
+				this.parametersType[i] = stringTable.FetchString(reader.ReadInt24());
+				this.parametersName[i] = stringTable.FetchString(reader.ReadInt24());
 			}
 
 			if ((flags & 4) != 0)
-				this.errorMessage = root.FetchString(reader.ReadInt24());
+				this.errorMessage = stringTable.FetchString(reader.ReadInt24());
 		}
 
-		public	MethodMeta(AssemblyMeta root, MethodDefinition methodDef)
+		public	MethodMeta(MethodDefinition methodDef)
 		{
-			this.root = root;
 			this.name = methodDef.Name;
 			this.errorMessage = AssemblyMeta.GetObsoleteMessage(methodDef);
 			this.isPublic = methodDef.IsPublic;
@@ -119,21 +115,21 @@ namespace NGUnityVersioner
 			}
 		}
 
-		public void	Save(BinaryWriter writer)
+		public void	Save(IStringTable stringTable, BinaryWriter writer)
 		{
-			writer.WriteInt24(this.root.RegisterString(this.Name));
-			writer.WriteInt24(this.root.RegisterString(this.ReturnType));
+			writer.WriteInt24(stringTable.RegisterString(this.Name));
+			writer.WriteInt24(stringTable.RegisterString(this.ReturnType));
 			writer.Write((Byte)((this.IsPublic ? 1 : 0) | (this.ErrorMessage != null ? 4 : 0)));
 			writer.Write((UInt16)this.ParametersType.Length);
 
 			for (int i = 0, max = this.ParametersType.Length; i < max; ++i)
 			{
-				writer.WriteInt24(this.root.RegisterString(this.ParametersType[i]));
-				writer.WriteInt24(this.root.RegisterString(this.ParametersName[i]));
+				writer.WriteInt24(stringTable.RegisterString(this.ParametersType[i]));
+				writer.WriteInt24(stringTable.RegisterString(this.ParametersName[i]));
 			}
 
 			if (this.ErrorMessage != null)
-				writer.WriteInt24(this.root.RegisterString(this.ErrorMessage));
+				writer.WriteInt24(stringTable.RegisterString(this.ErrorMessage));
 		}
 
 		public override string	ToString()

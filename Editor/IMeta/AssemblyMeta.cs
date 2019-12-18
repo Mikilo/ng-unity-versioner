@@ -27,7 +27,7 @@ namespace NGUnityVersioner
 		private TypeReference	lastTypeRef;
 		private TypeMeta		lastTypeRefAsMeta;
 
-		public static void	Save(string filepath, params AssemblyMeta[] assemblies)
+		public static void				Save(string filepath, params AssemblyMeta[] assemblies)
 		{
 			using (MemoryStream assembliesStream = new MemoryStream(1 << 20)) // 1MB
 			using (BinaryWriter assembliesWriter = new BinaryWriter(assembliesStream))
@@ -85,7 +85,7 @@ namespace NGUnityVersioner
 			}
 		}
 
-		public static string	GetObsoleteMessage(ICustomAttributeProvider attributeProvider)
+		public static string			GetObsoleteMessage(ICustomAttributeProvider attributeProvider)
 		{
 			if (attributeProvider.HasCustomAttributes == true)
 			{
@@ -117,12 +117,12 @@ namespace NGUnityVersioner
 			for (int i = 0, max = this.FriendAssemblies.Length; i < max; ++i)
 				this.FriendAssemblies[i] = reader.ReadString();
 
-			this.GlobalNamespace = new NamespaceMeta(this, string.Empty);
+			this.GlobalNamespace = new NamespaceMeta(string.Empty);
 			this.types = new TypeMeta[reader.ReadInt32()];
 
 			for (int i = 0, max = this.Types.Length; i < max; ++i)
 			{
-				this.Types[i] = new TypeMeta(this, reader);
+				this.Types[i] = new TypeMeta(this.stringTable, reader);
 				this.GenerateNamespace(this.Types[i].Namespace).Types.Add(this.Types[i]);
 			}
 		}
@@ -154,7 +154,7 @@ namespace NGUnityVersioner
 				else
 					this.friendAssemblies = new string[] { assemblyDef.Name.Name };
 
-				this.GlobalNamespace = new NamespaceMeta(this, string.Empty);
+				this.GlobalNamespace = new NamespaceMeta(string.Empty);
 
 				List<TypeMeta>	types = new List<TypeMeta>(1024);
 
@@ -166,10 +166,9 @@ namespace NGUnityVersioner
 					{
 						for (int j = 0, max2 = moduleDef.Types.Count; j < max2; ++j)
 						{
-							//if (moduleDef.Types[j].Name != "Vector3") continue;
 							NamespaceMeta	namespaceMeta = this.GenerateNamespace(moduleDef.Types[j].Namespace);
 
-							TypeMeta	typeMeta = new TypeMeta(this, moduleDef.Types[j]);
+							TypeMeta	typeMeta = new TypeMeta(moduleDef.Types[j]);
 							namespaceMeta.Types.Add(typeMeta);
 							types.Add(typeMeta);
 						}
@@ -179,16 +178,6 @@ namespace NGUnityVersioner
 				types.Sort((a, b) => a.Name.CompareTo(b.Name));
 				this.types = types.ToArray();
 			}
-		}
-
-		public int	RegisterString(string content)
-		{
-			return this.stringTable.RegisterString(content);
-		}
-
-		public string	FetchString(int index)
-		{
-			return this.stringTable.FetchString(index);
 		}
 
 		public NamespaceMeta	GenerateNamespace(string @namespace)
@@ -217,9 +206,9 @@ namespace NGUnityVersioner
 
 				if (i == namespacesCount)
 				{
-					NamespaceMeta	newNS = new NamespaceMeta(this, targetNamespaces[n]);
-					currentNamespace.Namespaces.Add(newNS);
-					currentNamespace = newNS;
+					NamespaceMeta	newNamespace = new NamespaceMeta(targetNamespaces[n]);
+					currentNamespace.Namespaces.Add(newNamespace);
+					currentNamespace = newNamespace;
 				}
 			}
 
@@ -277,7 +266,7 @@ namespace NGUnityVersioner
 
 			if (namespaceMeta != null)
 			{
-				this.lastTypeRefAsMeta = namespaceMeta.Resolve(typeRef);
+				this.lastTypeRefAsMeta = namespaceMeta.Resolve(this, typeRef);
 				return this.lastTypeRefAsMeta;
 			}
 
@@ -335,6 +324,7 @@ namespace NGUnityVersioner
 		public void	Save(BinaryWriter writer, StringTable sharedStringTable = null)
 		{
 			StringTable	temp = this.stringTable;
+
 			this.stringTable = sharedStringTable ?? temp;
 
 			using (MemoryStream memory = new MemoryStream(1 << 18)) // 256kB
@@ -343,7 +333,7 @@ namespace NGUnityVersioner
 				// Write Types into the buffer to populate the string table.
 				subWriter.Write(this.Types.Length);
 				for (int i = 0, max = this.Types.Length; i < max; ++i)
-					this.Types[i].Save(subWriter);
+					this.Types[i].Save(sharedStringTable, subWriter);
 
 				if (sharedStringTable == null)
 					this.stringTable.Save(writer);
@@ -367,7 +357,7 @@ namespace NGUnityVersioner
 		{
 			if (this.Types != null)
 			{
-				this.GlobalNamespace = new NamespaceMeta(this, string.Empty);
+				this.GlobalNamespace = new NamespaceMeta(string.Empty);
 
 				for (int i = 0, max = this.Types.Length; i < max; ++i)
 					this.GenerateNamespace(this.Types[i].Namespace).Types.Add(this.Types[i]);

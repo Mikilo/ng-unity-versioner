@@ -7,7 +7,7 @@ namespace NGUnityVersioner
 	{
 		public const string	Title = "Type Inspector";
 
-		public TypeMeta	meta;
+		public TypeMeta	typeMeta;
 
 		private Vector2	scrollPosition;
 
@@ -17,62 +17,62 @@ namespace NGUnityVersioner
 			{
 				this.scrollPosition = scroll.scrollPosition;
 
-				EditorGUILayout.TextField("Namespace", this.meta.Namespace);
-				EditorGUILayout.TextField("Name", this.meta.Name);
-				if (this.meta.ErrorMessage != null)
-					EditorGUILayout.TextField("Error", this.meta.ErrorMessage);
-				EditorGUILayout.TextField("Is Public", this.meta.IsPublic ? "True" : "False");
+				EditorGUILayout.TextField("Namespace", this.typeMeta.Namespace);
+				EditorGUILayout.TextField("Name", this.typeMeta.Name);
+				if (this.typeMeta.ErrorMessage != null)
+					EditorGUILayout.TextField("Error", this.typeMeta.ErrorMessage);
+				EditorGUILayout.TextField("Is Public", this.typeMeta.IsPublic ? "True" : "False");
 
-				if (this.meta.Events.Length > 0)
+				if (this.typeMeta.Events.Length > 0)
 				{
 					GUILayout.Space(5F);
 
 					using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 					{
-						GUILayout.Label("Events (" + this.meta.Events.Length + ")");
+						GUILayout.Label("Events (" + this.typeMeta.Events.Length + ")");
 					}
 
-					for (int i = 0, max = this.meta.Events.Length; i < max; ++i)
-						GUILayout.Label(this.meta.Events[i].ToString());
+					for (int i = 0, max = this.typeMeta.Events.Length; i < max; ++i)
+						GUILayout.Label(this.typeMeta.Events[i].ToString());
 				}
 
-				if (this.meta.Fields.Length > 0)
+				if (this.typeMeta.Fields.Length > 0)
 				{
 					GUILayout.Space(5F);
 
 					using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 					{
-						GUILayout.Label("Fields (" + this.meta.Fields.Length + ")");
+						GUILayout.Label("Fields (" + this.typeMeta.Fields.Length + ")");
 					}
 
-					for (int i = 0, max = this.meta.Fields.Length; i < max; ++i)
-						GUILayout.Label(this.meta.Fields[i].ToString());
+					for (int i = 0, max = this.typeMeta.Fields.Length; i < max; ++i)
+						GUILayout.Label(this.typeMeta.Fields[i].ToString());
 				}
 
-				if (this.meta.Properties.Length > 0)
+				if (this.typeMeta.Properties.Length > 0)
 				{
 					GUILayout.Space(5F);
 
 					using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 					{
-						GUILayout.Label("Properties (" + this.meta.Properties.Length + ")");
+						GUILayout.Label("Properties (" + this.typeMeta.Properties.Length + ")");
 					}
 
-					for (int i = 0, max = this.meta.Properties.Length; i < max; ++i)
-						GUILayout.Label(this.meta.Properties[i].ToString());
+					for (int i = 0, max = this.typeMeta.Properties.Length; i < max; ++i)
+						GUILayout.Label(this.typeMeta.Properties[i].ToString());
 				}
 
-				if (this.meta.Methods.Length > 0)
+				if (this.typeMeta.Methods.Length > 0)
 				{
 					GUILayout.Space(5F);
 
 					using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 					{
-						GUILayout.Label("Methods (" + this.meta.Methods.Length + ")");
+						GUILayout.Label("Methods (" + this.typeMeta.Methods.Length + ")");
 					}
 
-					for (int i = 0, max = this.meta.Methods.Length; i < max; ++i)
-						GUILayout.Label(this.meta.Methods[i].ToString());
+					for (int i = 0, max = this.typeMeta.Methods.Length; i < max; ++i)
+						GUILayout.Label(this.typeMeta.Methods[i].ToString());
 				}
 			}
 		}

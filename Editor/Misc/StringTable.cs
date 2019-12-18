@@ -3,7 +3,7 @@ using System.IO;
 
 namespace NGUnityVersioner
 {
-	public class StringTable
+	public class StringTable : IStringTable
 	{
 		public int	Count { get { return this.rawStringTable.Count; } }
 

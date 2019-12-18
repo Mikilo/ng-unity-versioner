@@ -7,6 +7,6 @@ namespace NGUnityVersioner
 		string	Name { get; }
 		string	ErrorMessage { get; }
 
-		void	Save(BinaryWriter writer);
+		void	Save(IStringTable stringTable, BinaryWriter writer);
 	}
 }

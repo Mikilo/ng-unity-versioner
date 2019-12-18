@@ -147,44 +147,48 @@ namespace NGUnityVersioner
 		public void	Export(StringBuilder buffer)
 		{
 			int	missingRefsCount = this.missingTypes.Count + this.missingFields.Count + this.missingMethods.Count;
+			int	warningsCount = this.foundTypes.Count + this.foundFields.Count + this.foundMethods.Count;
 
-			buffer.AppendLine(this.unityPath);
+			buffer.Append("Unity : ");
+			buffer.AppendLine(Utility.GetUnityVersion(this.unityPath));
 			buffer.Append("Inspected : ");
 
-			for (int j = 0, max2 = this.assemblyUsages.assemblies.Count; j < max2; ++j)
+			for (int j = 0, max2 = this.assemblyUsages.Assemblies.Length; j < max2; ++j)
 			{
 				if (j > 0)
 				{
 					buffer.Append("            ");
 				}
-					buffer.AppendLine(this.assemblyUsages.assemblies[j]);
+					buffer.AppendLine(this.assemblyUsages.Assemblies[j]);
 			}
 
 			buffer.Append("Filtered in namespaces : ");
 
-			for (int j = 0, max2 = this.assemblyUsages.filterNamespaces.Length; j < max2; ++j)
+			for (int j = 0, max2 = this.assemblyUsages.FilterNamespaces.Length; j < max2; ++j)
 			{
 				if (j > 0)
 					buffer.Append(", ");
-				buffer.Append(Path.GetFileNameWithoutExtension(this.assemblyUsages.filterNamespaces[j]));
+				buffer.Append(Path.GetFileNameWithoutExtension(this.assemblyUsages.FilterNamespaces[j]));
 			}
 			buffer.AppendLine();
 
 			buffer.Append("Targeted namespaces : ");
 
-			for (int j = 0, max2 = this.assemblyUsages.targetNamespaces.Length; j < max2; ++j)
+			for (int j = 0, max2 = this.assemblyUsages.TargetNamespaces.Length; j < max2; ++j)
 			{
 				if (j > 0)
 					buffer.Append(", ");
-				buffer.Append(Path.GetFileNameWithoutExtension(this.assemblyUsages.targetNamespaces[j]));
+				buffer.Append(Path.GetFileNameWithoutExtension(this.assemblyUsages.TargetNamespaces[j]));
 			}
 
 			buffer.AppendLine();
-			buffer.AppendLine();
 
-			if (missingRefsCount != 0)
+			if (missingRefsCount + warningsCount > 0)
 			{
-				buffer.AppendLine($"Missing References ({missingRefsCount})");
+				if (missingRefsCount + warningsCount == 1)
+					buffer.AppendLine((missingRefsCount + warningsCount) + " anomaly detected");
+				else
+					buffer.AppendLine((missingRefsCount + warningsCount) + " anomalies detected");
 
 				if (this.missingTypes.Count > 0)
 				{
@@ -205,6 +209,7 @@ namespace NGUnityVersioner
 				if (this.missingFields.Count > 0)
 				{
 					buffer.AppendLine($"  Missing Fields ({this.missingFields.Count})");
+
 					for (int j = 0, max2 = this.missingFields.Count; j < max2; ++j)
 					{
 						buffer.Append("    ");
@@ -221,6 +226,7 @@ namespace NGUnityVersioner
 				if (this.missingMethods.Count > 0)
 				{
 					buffer.AppendLine($"  Missing Methods ({this.missingMethods.Count})");
+
 					for (int j = 0, max2 = this.missingMethods.Count; j < max2; ++j)
 					{
 						buffer.Append("    ");
@@ -237,61 +243,40 @@ namespace NGUnityVersioner
 
 			if (this.foundTypes.Count > 0)
 			{
-				for (int j = 0, first = 0, max2 = this.foundTypes.Count; j < max2; ++j)
-				{
-					if (this.foundTypes[j].ErrorMessage != null)
-					{
-						if (first == 0)
-						{
-							first = 1;
-							buffer.AppendLine("Found Types (with error)");
-						}
+				buffer.AppendLine("  Found Types with error (" + this.foundTypes.Count + ")");
 
-						buffer.Append("  ");
-						buffer.AppendLine(this.foundTypes[j].ToString());
-						buffer.Append("    ");
-						buffer.AppendLine(this.foundTypes[j].ErrorMessage);
-					}
+				for (int j = 0, max2 = this.foundTypes.Count; j < max2; ++j)
+				{
+					buffer.Append("    ");
+					buffer.AppendLine(this.foundTypes[j].ToString());
+					buffer.Append("      ");
+					buffer.AppendLine(this.foundTypes[j].ErrorMessage);
 				}
 			}
 
 			if (this.foundFields.Count > 0)
 			{
-				for (int j = 0, first = 0, max2 = this.foundFields.Count; j < max2; ++j)
-				{
-					if (this.foundFields[j].ErrorMessage != null)
-					{
-						if (first == 0)
-						{
-							first = 1;
-							buffer.AppendLine("Found Fields (with error)");
-						}
+				buffer.AppendLine("  Found Fields with error (" + this.foundFields.Count + ")");
 
-						buffer.Append("  ");
-						buffer.AppendLine(this.foundFields[j].ToString());
-						buffer.Append("    ");
-						buffer.AppendLine(this.foundFields[j].ErrorMessage);
-					}
+				for (int j = 0, max2 = this.foundFields.Count; j < max2; ++j)
+				{
+					buffer.Append("    ");
+					buffer.AppendLine(this.foundFields[j].ToString());
+					buffer.Append("      ");
+					buffer.AppendLine(this.foundFields[j].ErrorMessage);
 				}
 			}
 
 			if (this.foundMethods.Count > 0)
 			{
-				for (int j = 0, first = 0, max2 = this.foundMethods.Count; j < max2; ++j)
-				{
-					if (this.foundMethods[j].ErrorMessage != null)
-					{
-						if (first == 0)
-						{
-							first = 1;
-							buffer.AppendLine("Found Methods (with error)");
-						}
+				buffer.AppendLine("  Found Methods with error (" + this.foundMethods.Count + ")");
 
-						buffer.Append("  ");
-						buffer.AppendLine(this.foundMethods[j].ToString());
-						buffer.Append("    ");
-						buffer.AppendLine(this.foundMethods[j].ErrorMessage);
-					}
+				for (int j = 0, max2 = this.foundMethods.Count; j < max2; ++j)
+				{
+					buffer.Append("    ");
+					buffer.AppendLine(this.foundMethods[j].ToString());
+					buffer.Append("      ");
+					buffer.AppendLine(this.foundMethods[j].ErrorMessage);
 				}
 			}
 

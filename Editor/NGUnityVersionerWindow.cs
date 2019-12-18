@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
@@ -43,6 +44,8 @@ namespace NGUnityVersioner
 		private Vector2			scrollPosition;
 		[NonSerialized]
 		private string			detectedAssemblies;
+		[NonSerialized]
+		private string			detectedAssembliesTooltip;
 		[NonSerialized]
 		private string[]		assembliesMeta;
 		[NonSerialized]
@@ -118,22 +121,52 @@ namespace NGUnityVersioner
 						List<string>	assemblies = this.GetTargetAssemblies();
 
 						if (assemblies.Count == 0)
+						{
 							this.detectedAssemblies = "No assembly detected.";
-						else if (assemblies.Count > 1)
-							this.detectedAssemblies = assemblies.Count + " assemblies detected.";
+							this.detectedAssembliesTooltip = null;
+						}
 						else
-							this.detectedAssemblies = "1 assembly detected.";
+						{
+							if (assemblies.Count > 1)
+								this.detectedAssemblies = assemblies.Count + " assemblies detected.";
+							else
+								this.detectedAssemblies = "1 assembly detected.";
+
+							StringBuilder	buffer = Utility.GetBuffer();
+
+							for (int i = 0, max = assemblies.Count; i < max; ++i)
+								buffer.AppendLine(assemblies[i]);
+
+							buffer.Length -= Environment.NewLine.Length;
+
+							this.detectedAssembliesTooltip = Utility.ReturnBuffer(buffer);
+						}
 					}
 
+					Utility.content.text = this.detectedAssemblies;
 					Rect	r2 = GUILayoutUtility.GetLastRect();
-					r2.x += 16F;
+					r2.xMin += 16F;
+					r2.y -= 2F;
 					r2.yMin = r2.yMax - 16F;
-					GUI.Label(r2, this.detectedAssemblies, EditorStyles.miniLabel);
-					r2.x -= 10F;
+					GUI.Label(r2, Utility.content, EditorStyles.miniLabel);
+					r2.xMin -= 12F;
 					GUI.Label(r2, "↳");
 
+					if (this.detectedAssembliesTooltip != null)
+					{
+						r2.width = GUI.skin.label.CalcSize(Utility.content).x;
+						TooltipHelper.Label(r2, this.detectedAssembliesTooltip);
+					}
+
+					GUILayout.Space(3F);
+
 					this.listFilterNamespaces.DoLayoutList();
+
+					GUILayout.Space(3F);
+
 					this.listTargetNamespaces.DoLayoutList();
+
+					GUILayout.Space(2F);
 
 					using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 					{

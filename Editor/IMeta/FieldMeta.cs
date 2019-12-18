@@ -22,21 +22,17 @@ namespace NGUnityVersioner
 		private string	type;
 		public string	Type { get { return this.type; } }
 
-		public readonly AssemblyMeta	root;
-
-		public FieldMeta(AssemblyMeta root, TypeMeta declaringType, BinaryReader reader)
+		public FieldMeta(IStringTable stringTable, TypeMeta declaringType, BinaryReader reader)
 		{
-			this.root = root;
-			this.name = root.FetchString(reader.ReadInt24());
-			this.errorMessage = root.FetchString(reader.ReadInt24());
+			this.name = stringTable.FetchString(reader.ReadInt24());
+			this.errorMessage = stringTable.FetchString(reader.ReadInt24());
 
 			this.declaringType = declaringType.FullName;
-			this.type = root.FetchString(reader.ReadInt24());
+			this.type = stringTable.FetchString(reader.ReadInt24());
 		}
 
-		public	FieldMeta(AssemblyMeta root, FieldDefinition fieldDef)
+		public	FieldMeta(FieldDefinition fieldDef)
 		{
-			this.root = root;
 			this.name = fieldDef.Name;
 			this.errorMessage = AssemblyMeta.GetObsoleteMessage(fieldDef);
 
@@ -51,11 +47,11 @@ namespace NGUnityVersioner
 			this.type = fieldRef.FieldType.FullName;
 		}
 
-		public void	Save(BinaryWriter writer)
+		public void	Save(IStringTable stringTable, BinaryWriter writer)
 		{
-			writer.WriteInt24(this.root.RegisterString(this.Name));
-			writer.WriteInt24(this.root.RegisterString(this.ErrorMessage));
-			writer.WriteInt24(this.root.RegisterString(this.Type));
+			writer.WriteInt24(stringTable.RegisterString(this.Name));
+			writer.WriteInt24(stringTable.RegisterString(this.ErrorMessage));
+			writer.WriteInt24(stringTable.RegisterString(this.Type));
 		}
 
 		public override string	ToString()

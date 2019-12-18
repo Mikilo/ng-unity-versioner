@@ -163,7 +163,7 @@ namespace NGUnityVersioner
 
 								if (GUI.Button(r, "Inspect") == true)
 								{
-									Utility.OpenWindow<TypeMetaWindow>(true, TypeMetaWindow.Title, true, null, w => w.meta = assemblyMeta.Types[i]);
+									Utility.OpenWindow<TypeMetaWindow>(true, TypeMetaWindow.Title, true, null, w => w.typeMeta = assemblyMeta.Types[i]);
 									return;
 								}
 							}

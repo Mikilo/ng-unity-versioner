@@ -2,7 +2,6 @@
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -17,10 +16,10 @@ namespace NGUnityVersioner
 			{
 				get
 				{
-					if (instance == null)
-						instance = new AutoIndent();
-					++depth;
-					return instance;
+					if (AutoIndent.instance == null)
+						AutoIndent.instance = new AutoIndent();
+					++AssemblyUsagesExtractor.depth;
+					return AutoIndent.instance;
 				}
 			}
 
@@ -30,51 +29,17 @@ namespace NGUnityVersioner
 
 			public void	Dispose()
 			{
-				--depth;
+				--AssemblyUsagesExtractor.depth;
 			}
 		}
 
-		internal static int	debug = 0;
+		public static int	debug = 0;
+
 		private static int	depth = 0;
 
-		public static AssemblyUsages	InspectAssembly(IEnumerable<string> assembliesPath, string[] filterNamespaces, string[] targetNamespaces)
+		public static void	InspectAssembly(AssemblyUsages result, AssemblyDefinition assemblyDef)
 		{
-			AssemblyUsages	result = new AssemblyUsages()
-			{
-				assemblies = new List<string>(assembliesPath),
-				filterNamespaces = filterNamespaces,
-				targetNamespaces = targetNamespaces,
-			};
-
-			foreach (string assemblyPath in assembliesPath)
-			{
-				using (AssemblyDefinition	assemblyDef = AssemblyDefinition.ReadAssembly(assemblyPath))
-				{
-					if (debug > 1) AssemblyUsagesExtractor.Log("Assembly {0}", assemblyDef);
-
-					using (AutoIndent.Instance)
-					{
-						AssemblyUsagesExtractor.InspectAttributes(result, assemblyDef);
-						AssemblyUsagesExtractor.InspectSecurityDeclarations(result, assemblyDef);
-
-						foreach (ModuleDefinition module in assemblyDef.Modules)
-							AssemblyUsagesExtractor.InspectModule(result, module);
-					}
-				}
-			}
-
-			return result;
-		}
-
-		public static AssemblyUsages	InspectAssembly(AssemblyDefinition assemblyDef, string[] filterNamespaces)
-		{
-			AssemblyUsages	result = new AssemblyUsages()
-			{
-				assemblies = new List<string>() { assemblyDef.FullName },
-				filterNamespaces = filterNamespaces,
-			};
-
-			if (debug > 1)AssemblyUsagesExtractor.Log("Assembly {0}", assemblyDef);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Assembly {0}", assemblyDef);
 
 			using (AutoIndent.Instance)
 			{
@@ -84,13 +49,11 @@ namespace NGUnityVersioner
 				foreach (ModuleDefinition module in assemblyDef.Modules)
 					AssemblyUsagesExtractor.InspectModule(result, module);
 			}
-
-			return result;
 		}
 
-		private static void	InspectModule(AssemblyUsages result, ModuleDefinition moduleDef)
+		public static void	InspectModule(AssemblyUsages result, ModuleDefinition moduleDef)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Module {0}", moduleDef);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Module {0}", moduleDef);
 
 			using (AutoIndent.Instance)
 			{
@@ -98,12 +61,12 @@ namespace NGUnityVersioner
 
 				if (moduleDef.HasTypes == true)
 				{
-					int	filterNamespacesLength = result.filterNamespaces.Length;
+					int	filterNamespacesLength = result.FilterNamespaces.Length;
 
 					foreach (TypeDefinition typeDef in moduleDef.Types)
 					{
-						if ((filterNamespacesLength == 0 || result.filterNamespaces.FirstOrDefault(ns => typeDef.Namespace.StartsWith(ns)) != null) &&
-							(filterNamespacesLength != 0 || result.targetNamespaces.FirstOrDefault(ns => typeDef.Namespace.StartsWith(ns)) == null))
+						if ((filterNamespacesLength == 0 || result.FilterNamespaces.FirstOrDefault(ns => typeDef.Namespace.StartsWith(ns)) != null) &&
+							(filterNamespacesLength != 0 || result.TargetNamespaces.FirstOrDefault(ns => typeDef.Namespace.StartsWith(ns)) == null))
 						{
 							AssemblyUsagesExtractor.InspectType(result, typeDef);
 						}
@@ -114,7 +77,7 @@ namespace NGUnityVersioner
 
 		public static void	InspectType(AssemblyUsages result, TypeDefinition typeDef)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Type {0}", typeDef);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Type {0}", typeDef);
 
 			using (AutoIndent.Instance)
 			{
@@ -122,44 +85,47 @@ namespace NGUnityVersioner
 				AssemblyUsagesExtractor.InspectSecurityDeclarations(result, typeDef);
 				AssemblyUsagesExtractor.InspectGenericParameters(result, typeDef);
 
-				if (typeDef.HasInterfaces)
+				if (typeDef.HasInterfaces == true)
 				{
 					foreach (InterfaceImplementation interfaceImpl in typeDef.Interfaces)
 						AssemblyUsagesExtractor.InspectInterface(result, interfaceImpl);
 				}
 
-				if (typeDef.HasNestedTypes)
+				if (typeDef.HasNestedTypes == true)
 				{
 					foreach (TypeDefinition nestedType in typeDef.NestedTypes)
 						AssemblyUsagesExtractor.InspectType(result, nestedType);
 				}
 
-				if (typeDef.HasEvents)
+				if (typeDef.HasEvents == true)
 				{
-					foreach (EventDefinition @event in typeDef.Events)
-						AssemblyUsagesExtractor.InspectEvent(result, @event);
+					foreach (EventDefinition eventDef in typeDef.Events)
+						AssemblyUsagesExtractor.InspectEvent(result, eventDef);
 				}
 
-				if (typeDef.HasFields)
+				if (typeDef.HasFields == true)
 				{
-					foreach (FieldDefinition field in typeDef.Fields)
-						AssemblyUsagesExtractor.InspectField(result, field);
+					foreach (FieldDefinition fieldDef in typeDef.Fields)
+						AssemblyUsagesExtractor.InspectField(result, fieldDef);
 				}
 
-				if (typeDef.HasProperties)
+				if (typeDef.HasProperties == true)
 				{
-					foreach (PropertyDefinition property in typeDef.Properties)
-						AssemblyUsagesExtractor.InspectProperty(result, property);
+					foreach (PropertyDefinition propertyDef in typeDef.Properties)
+						AssemblyUsagesExtractor.InspectProperty(result, propertyDef);
 				}
 
-				foreach (MethodDefinition method in typeDef.Methods)
-					AssemblyUsagesExtractor.InspectMethod(result, method);
+				if (typeDef.HasMethods == true)
+				{
+					foreach (MethodDefinition methodDef in typeDef.Methods)
+						AssemblyUsagesExtractor.InspectMethod(result, methodDef);
+				}
 			}
 		}
 
 		public static void	InspectInterface(AssemblyUsages result, InterfaceImplementation interfaceImpl)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Interface {0}", interfaceImpl.InterfaceType);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Interface {0}", interfaceImpl.InterfaceType);
 
 			using (AutoIndent.Instance)
 			{
@@ -168,9 +134,9 @@ namespace NGUnityVersioner
 			}
 		}
 
-		private static void	InspectEvent(AssemblyUsages result, EventDefinition eventDef)
+		public static void	InspectEvent(AssemblyUsages result, EventDefinition eventDef)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Event {0}", eventDef);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Event {0}", eventDef);
 
 			using (AutoIndent.Instance)
 			{
@@ -188,20 +154,20 @@ namespace NGUnityVersioner
 			}
 		}
 
-		public static void	InspectField(AssemblyUsages result, FieldDefinition field)
+		public static void	InspectField(AssemblyUsages result, FieldDefinition fieldDef)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Field {0}", field);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Field {0}", fieldDef);
 
 			using (AutoIndent.Instance)
 			{
-				result.RegisterTypeRef(field.FieldType);
-				AssemblyUsagesExtractor.InspectAttributes(result, field);
+				result.RegisterTypeRef(fieldDef.FieldType);
+				AssemblyUsagesExtractor.InspectAttributes(result, fieldDef);
 			}
 		}
 
-		private static void	InspectProperty(AssemblyUsages result, PropertyDefinition propertyDef)
+		public static void	InspectProperty(AssemblyUsages result, PropertyDefinition propertyDef)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Property {0}", propertyDef);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Property {0}", propertyDef);
 
 			using (AutoIndent.Instance)
 			{
@@ -219,7 +185,7 @@ namespace NGUnityVersioner
 
 		public static void	InspectMethod(AssemblyUsages result, MethodDefinition methodDef)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Method {0}", methodDef);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Method {0}", methodDef);
 
 			using (AutoIndent.Instance)
 			{
@@ -235,7 +201,7 @@ namespace NGUnityVersioner
 					{
 						foreach (VariableDefinition variable in methodDef.Body.Variables)
 						{
-							if (debug > 1)AssemblyUsagesExtractor.Log("Var {0} {1}", variable.Index, variable.VariableType);
+							if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Var {0} {1}", variable.Index, variable.VariableType);
 							result.RegisterTypeRef(variable.VariableType);
 						}
 					}
@@ -248,13 +214,13 @@ namespace NGUnityVersioner
 							FieldReference	fieldRef = il.Operand as FieldReference;
 
 							if (result.RegisterFieldRef(fieldRef) == true)
-								if (debug > 1)AssemblyUsagesExtractor.Log("Use Field {0}", fieldRef.FullName);
+								if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Use Field {0}", fieldRef.FullName);
 							else
-								if (debug > 1)AssemblyUsagesExtractor.Log("Cache Use Field {0}", fieldRef.FullName);
+								if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Cache Use Field {0}", fieldRef.FullName);
 						}
 						else if (il.OpCode == OpCodes.Call || il.OpCode == OpCodes.Callvirt || il.OpCode == OpCodes.Calli ||
-								 il.OpCode == OpCodes.Newobj || il.OpCode == OpCodes.Ldftn || il.OpCode == OpCodes.Ldvirtftn ||
-								 il.OpCode == OpCodes.Jmp)
+								 il.OpCode == OpCodes.Newobj || il.OpCode == OpCodes.Jmp ||
+								 il.OpCode == OpCodes.Ldftn || il.OpCode == OpCodes.Ldvirtftn)
 						{
 							MethodReference	methodRef = il.Operand as MethodReference;
 
@@ -262,7 +228,7 @@ namespace NGUnityVersioner
 							{
 								if (result.RegisterMethodRef(methodRef) == true)
 								{
-									if (debug > 1)AssemblyUsagesExtractor.Log("Call {0}", methodRef.FullName);
+									if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Call {0}", methodRef.FullName);
 
 									using (AutoIndent.Instance)
 									{
@@ -270,13 +236,11 @@ namespace NGUnityVersioner
 									}
 								}
 								else
-									if (debug > 1)AssemblyUsagesExtractor.Log("Cache Call {0}", methodRef.FullName);
+									if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Cache Call {0}", methodRef.FullName);
 							}
 						}
 						else if (il.OpCode == OpCodes.Castclass || il.OpCode == OpCodes.Isinst || il.OpCode == OpCodes.Box || il.OpCode == OpCodes.Newarr || il.OpCode == OpCodes.Ldobj || il.OpCode == OpCodes.Stobj || il.OpCode == OpCodes.Cpobj || il.OpCode == OpCodes.Unbox || il.OpCode == OpCodes.Unbox_Any || il.OpCode == OpCodes.Initobj || il.OpCode == OpCodes.Sizeof || il.OpCode == OpCodes.Refanyval || il.OpCode == OpCodes.Mkrefany || il.OpCode == OpCodes.Ldelema || il.OpCode == OpCodes.Ldelem_Any || il.OpCode == OpCodes.Constrained)
-						{
 							result.RegisterTypeRef(il.Operand as TypeReference);
-						}
 						else if (il.OpCode == OpCodes.Ldtoken)
 						{
 							TypeReference	typeRef = il.Operand as TypeReference;
@@ -304,7 +268,7 @@ namespace NGUnityVersioner
 
 		public static void	InspectMethodReturnType(AssemblyUsages result, MethodReturnType methodReturnType)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Return {0}", methodReturnType.ReturnType);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Return {0}", methodReturnType.ReturnType);
 
 			using (AutoIndent.Instance)
 			{
@@ -327,16 +291,20 @@ namespace NGUnityVersioner
 
 		public static void	InspectGenericParameter(AssemblyUsages result, GenericParameter parameter)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("GenParam {0}", parameter);
-			AssemblyUsagesExtractor.InspectAttributes(result, parameter);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("GenParam {0}", parameter);
 
-			if (parameter.HasConstraints)
+			using (AutoIndent.Instance)
 			{
-				foreach (GenericParameterConstraint constraint in parameter.Constraints)
+				AssemblyUsagesExtractor.InspectAttributes(result, parameter);
+
+				if (parameter.HasConstraints)
 				{
-					if (debug > 1)AssemblyUsagesExtractor.Log("Constraint {0}", constraint);
-					result.RegisterTypeRef(constraint.ConstraintType);
-					AssemblyUsagesExtractor.InspectAttributes(result, constraint);
+					foreach (GenericParameterConstraint constraint in parameter.Constraints)
+					{
+						if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Constraint {0}", constraint);
+						result.RegisterTypeRef(constraint.ConstraintType);
+						AssemblyUsagesExtractor.InspectAttributes(result, constraint);
+					}
 				}
 			}
 		}
@@ -357,7 +325,7 @@ namespace NGUnityVersioner
 		{
 			foreach (ParameterDefinition parameter in parameters)
 			{
-				if (debug > 1)AssemblyUsagesExtractor.Log("Param {0} {1}", parameter.ParameterType, parameter.Name);
+				if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Param {0} {1}", parameter.ParameterType, parameter.Name);
 
 				using (AutoIndent.Instance)
 				{
@@ -373,7 +341,7 @@ namespace NGUnityVersioner
 			{
 				foreach (SecurityDeclaration securityDeclaration in securityDeclarationProvider.SecurityDeclarations)
 				{
-					if (debug > 1)AssemblyUsagesExtractor.Log("SecDecl {0}", securityDeclaration);
+					if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("SecDecl {0}", securityDeclaration);
 
 					using (AutoIndent.Instance)
 					{
@@ -389,7 +357,7 @@ namespace NGUnityVersioner
 			{
 				foreach (SecurityAttribute attribute in securityDeclaration.SecurityAttributes)
 				{
-					if (debug > 1)AssemblyUsagesExtractor.Log("SecAttr {0}", attribute);
+					if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("SecAttr {0}", attribute);
 
 					using (AutoIndent.Instance)
 					{
@@ -412,7 +380,7 @@ namespace NGUnityVersioner
 
 		public static void	InspectAttribute(AssemblyUsages result, ICustomAttribute attribute)
 		{
-			if (debug > 1)AssemblyUsagesExtractor.Log("Attribute {0}", attribute.AttributeType);
+			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Attribute {0}", attribute.AttributeType);
 
 			using (AutoIndent.Instance)
 			{
@@ -425,7 +393,7 @@ namespace NGUnityVersioner
 				//	{
 				//		foreach (var arg in attribute.ConstructorArguments)
 				//		{
-				//			if (debug > 1)AssemblyUsagesExtractor.Log("Arg {0} {1}", arg.Type, arg.Value);
+				//			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Arg {0} {1}", arg.Type, arg.Value);
 				//			result.RegisterTypeRef(arg.Type);
 				//		}
 				//	}
@@ -433,7 +401,7 @@ namespace NGUnityVersioner
 				//	{
 				//		foreach (var field in attribute.Fields)
 				//		{
-				//			if (debug > 1)AssemblyUsagesExtractor.Log("Field {0} {1} {2}", field.Name, field.Argument.Type, field.Argument.Value);
+				//			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Field {0} {1} {2}", field.Name, field.Argument.Type, field.Argument.Value);
 				//			result.RegisterTypeRef(field.Argument.Type);
 				//		}
 				//	}
@@ -441,14 +409,14 @@ namespace NGUnityVersioner
 				//	{
 				//		foreach (var property in attribute.Properties)
 				//		{
-				//			if (debug > 1)AssemblyUsagesExtractor.Log("Property {0} {1} {2}", property.Name, property.Argument.Type, property.Argument.Value);
+				//			if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Property {0} {1} {2}", property.Name, property.Argument.Type, property.Argument.Value);
 				//			result.RegisterTypeRef(property.Argument.Type);
 				//		}
 				//	}
 				//}
 				//catch (Exception ex)
 				//{
-				//	if (debug > 0)
+				//	if (AssemblyUsagesExtractor.debug > 0)
 				//		Console.WriteLine(ex.ToString());
 				//}
 			}
@@ -456,11 +424,7 @@ namespace NGUnityVersioner
 
 		private static void	Log(string message, params object[] args)
 		{
-			if (debug > 1)
-			{
-				Console.Write(new string('\t', depth));
-				Console.WriteLine(message, args);
-			}
+			Debug.Log(new string('\t', depth) + string.Format(message, args));
 		}
 	}
 }

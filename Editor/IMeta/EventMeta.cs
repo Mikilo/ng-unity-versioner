@@ -29,27 +29,23 @@ namespace NGUnityVersioner
 		private bool	hasRemove;
 		public bool		HasRemove { get { return this.hasRemove; } }
 
-		public readonly AssemblyMeta	root;
-
-		public	EventMeta(AssemblyMeta root, TypeMeta declaringType, BinaryReader reader)
+		public	EventMeta(IStringTable stringTable, TypeMeta declaringType, BinaryReader reader)
 		{
-			this.root = root;
-			this.name = root.FetchString(reader.ReadInt24());
+			this.name = stringTable.FetchString(reader.ReadInt24());
 
 			this.declaringType = declaringType.FullName;
-			this.type = root.FetchString(reader.ReadInt24());
+			this.type = stringTable.FetchString(reader.ReadInt24());
 
 			byte	flags = reader.ReadByte();
 
 			this.hasAdd = (flags & 1) != 0;
 			this.hasRemove = (flags & 2) != 0;
 			if ((flags & 4) != 0)
-				this.errorMessage = root.FetchString(reader.ReadInt24());
+				this.errorMessage = stringTable.FetchString(reader.ReadInt24());
 		}
 
-		public	EventMeta(AssemblyMeta root, EventDefinition @event)
+		public	EventMeta(EventDefinition @event)
 		{
-			this.root = root;
 			this.name = @event.Name;
 			this.errorMessage = AssemblyMeta.GetObsoleteMessage(@event);
 
@@ -60,13 +56,13 @@ namespace NGUnityVersioner
 			this.hasRemove = @event.RemoveMethod != null;
 		}
 
-		public void	Save(BinaryWriter writer)
+		public void	Save(IStringTable stringTable, BinaryWriter writer)
 		{
-			writer.WriteInt24(this.root.RegisterString(this.Name));
-			writer.WriteInt24(this.root.RegisterString(this.Type));
+			writer.WriteInt24(stringTable.RegisterString(this.Name));
+			writer.WriteInt24(stringTable.RegisterString(this.Type));
 			writer.Write((Byte)((this.HasAdd ? 1 : 0) | (this.HasRemove ? 2 : 0) | (this.ErrorMessage != null ? 4 : 0)));
 			if (this.ErrorMessage != null)
-				writer.WriteInt24(this.root.RegisterString(this.ErrorMessage));
+				writer.WriteInt24(stringTable.RegisterString(this.ErrorMessage));
 		}
 
 		public override string	ToString()

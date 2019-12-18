@@ -49,19 +49,16 @@ namespace NGUnityVersioner
 		private MethodMeta[]	methods;
 		public MethodMeta[]		Methods { get { return this.methods; } }
 
-		public readonly AssemblyMeta	root;
-
-		public	TypeMeta(AssemblyMeta root, BinaryReader reader)
+		public	TypeMeta(IStringTable stringTable, BinaryReader reader)
 		{
-			this.root = root;
-			this.@namespace = root.FetchString(reader.ReadInt24());
+			this.@namespace = stringTable.FetchString(reader.ReadInt24());
 			this.name = reader.ReadString();
 
 			byte	flags = reader.ReadByte();
 
 			this.isPublic = (flags & 1) != 0;
 			if ((flags & 4) != 0)
-				this.errorMessage = root.FetchString(reader.ReadInt24());
+				this.errorMessage = stringTable.FetchString(reader.ReadInt24());
 
 			if ((flags & 8) != 0)
 				this.events = new EventMeta[reader.ReadUInt16()];
@@ -69,7 +66,7 @@ namespace NGUnityVersioner
 				this.events = new EventMeta[reader.ReadByte()];
 
 			for (int i = 0, max = this.events.Length; i < max; ++i)
-				this.events[i] = new EventMeta(root, this, reader);
+				this.events[i] = new EventMeta(stringTable, this, reader);
 
 			if ((flags & 16) != 0)
 				this.fields = new FieldMeta[reader.ReadUInt16()];
@@ -77,7 +74,7 @@ namespace NGUnityVersioner
 				this.fields = new FieldMeta[reader.ReadByte()];
 
 			for (int i = 0, max = this.fields.Length; i < max; ++i)
-				this.fields[i] = new FieldMeta(root, this, reader);
+				this.fields[i] = new FieldMeta(stringTable, this, reader);
 
 			if ((flags & 32) != 0)
 				this.properties = new PropertyMeta[reader.ReadUInt16()];
@@ -85,7 +82,7 @@ namespace NGUnityVersioner
 				this.properties = new PropertyMeta[reader.ReadByte()];
 
 			for (int i = 0, max = this.properties.Length; i < max; ++i)
-				this.properties[i] = new PropertyMeta(root, this, reader);
+				this.properties[i] = new PropertyMeta(stringTable, this, reader);
 
 			if ((flags & 64) != 0)
 				this.methods = new MethodMeta[reader.ReadUInt16()];
@@ -93,12 +90,11 @@ namespace NGUnityVersioner
 				this.methods = new MethodMeta[reader.ReadByte()];
 
 			for (int i = 0, max = this.methods.Length; i < max; ++i)
-				this.methods[i] = new MethodMeta(root, this, reader);
+				this.methods[i] = new MethodMeta(stringTable, this, reader);
 		}
 
-		public	TypeMeta(AssemblyMeta root, TypeDefinition typeDef)
+		public	TypeMeta(TypeDefinition typeDef)
 		{
-			this.root = root;
 			this.@namespace = typeDef.Namespace;
 			this.name = typeDef.Name;
 			this.isPublic = typeDef.IsPublic;
@@ -108,7 +104,7 @@ namespace NGUnityVersioner
 			{
 				this.events = new EventMeta[typeDef.Events.Count];
 				for (int i = 0, max = typeDef.Events.Count; i < max; ++i)
-					this.events[i] = new EventMeta(root, typeDef.Events[i]);
+					this.events[i] = new EventMeta(typeDef.Events[i]);
 			}
 			else
 				this.events = new EventMeta[0];
@@ -117,7 +113,7 @@ namespace NGUnityVersioner
 			{
 				this.fields = new FieldMeta[typeDef.Fields.Count];
 				for (int i = 0, max = typeDef.Fields.Count; i < max; ++i)
-					this.fields[i] = new FieldMeta(root, typeDef.Fields[i]);
+					this.fields[i] = new FieldMeta(typeDef.Fields[i]);
 			}
 			else
 				this.fields = new FieldMeta[0];
@@ -126,7 +122,7 @@ namespace NGUnityVersioner
 			{
 				this.properties = new PropertyMeta[typeDef.Properties.Count];
 				for (int i = 0, max = typeDef.Properties.Count; i < max; ++i)
-					this.properties[i] = new PropertyMeta(root, typeDef.Properties[i]);
+					this.properties[i] = new PropertyMeta(typeDef.Properties[i]);
 			}
 			else
 				this.properties = new PropertyMeta[0];
@@ -135,7 +131,7 @@ namespace NGUnityVersioner
 			{
 				this.methods = new MethodMeta[typeDef.Methods.Count];
 				for (int i = 0, max = typeDef.Methods.Count; i < max; ++i)
-					this.methods[i] = new MethodMeta(root, typeDef.Methods[i]);
+					this.methods[i] = new MethodMeta(typeDef.Methods[i]);
 			}
 			else
 				this.methods = new MethodMeta[0];
@@ -271,14 +267,14 @@ namespace NGUnityVersioner
 			return null;
 		}
 
-		public void	Save(BinaryWriter writer)
+		public void	Save(IStringTable stringTable, BinaryWriter writer)
 		{
 			bool	manyEvents = this.events.Length > 256;
 			bool	manyFields = this.fields.Length > 256;
 			bool	manyProperties = this.properties.Length > 256;
 			bool	manyMethods = this.methods.Length > 256;
 
-			writer.WriteInt24(this.root.RegisterString(this.Namespace));
+			writer.WriteInt24(stringTable.RegisterString(this.Namespace));
 			writer.Write(this.Name);
 			writer.Write((Byte)((this.IsPublic ? 1 : 0) |
 								(this.ErrorMessage != null ? 4 : 0) |
@@ -287,7 +283,7 @@ namespace NGUnityVersioner
 								(manyProperties == true ? 32 : 0) |
 								(manyMethods == true ? 64 : 0)));
 			if (this.ErrorMessage != null)
-				writer.WriteInt24(this.root.RegisterString(this.ErrorMessage));
+				writer.WriteInt24(stringTable.RegisterString(this.ErrorMessage));
 
 			if (manyEvents == true)
 				writer.Write((UInt16)this.events.Length);
@@ -295,7 +291,7 @@ namespace NGUnityVersioner
 				writer.Write((Byte)this.events.Length);
 
 			for (int i = 0, max = this.events.Length; i < max; ++i)
-				this.events[i].Save(writer);
+				this.events[i].Save(stringTable, writer);
 
 			if (manyFields == true)
 				writer.Write((UInt16)this.fields.Length);
@@ -303,7 +299,7 @@ namespace NGUnityVersioner
 				writer.Write((Byte)this.fields.Length);
 
 			for (int i = 0, max = this.fields.Length; i < max; ++i)
-				this.fields[i].Save(writer);
+				this.fields[i].Save(stringTable, writer);
 
 			if (manyProperties == true)
 				writer.Write((UInt16)this.properties.Length);
@@ -311,7 +307,7 @@ namespace NGUnityVersioner
 				writer.Write((Byte)this.properties.Length);
 
 			for (int i = 0, max = this.properties.Length; i < max; ++i)
-				this.properties[i].Save(writer);
+				this.properties[i].Save(stringTable, writer);
 
 			if (manyMethods == true)
 				writer.Write((UInt16)this.methods.Length);
@@ -319,7 +315,7 @@ namespace NGUnityVersioner
 				writer.Write((Byte)this.methods.Length);
 
 			for (int i = 0, max = this.methods.Length; i < max; ++i)
-				this.methods[i].Save(writer);
+				this.methods[i].Save(stringTable, writer);
 		}
 
 		public override string	ToString()

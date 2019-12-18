@@ -36,9 +36,15 @@ namespace NGUnityVersioner
 
 		private static Dictionary<string, AssemblyMeta[]>	assembliesMeta = new Dictionary<string, AssemblyMeta[]>();
 
-		public List<string>	assemblies = new List<string>();
-		public string[]		filterNamespaces;
-		public string[]		targetNamespaces;
+		[SerializeField]
+		private string[]	assemblies;
+		public string[]		Assemblies { get { return this.assemblies; } }
+		[SerializeField]
+		private string[]	filterNamespaces;
+		public string[]		FilterNamespaces { get { return this.filterNamespaces; } }
+		[SerializeField]
+		private string[]	targetNamespaces;
+		public string[]		TargetNamespaces { get { return this.targetNamespaces; } }
 
 		// Events & properties are not "used" directly, they are replaced with fields & methods in IL.
 		public HashSet<TypeReference>		types = new HashSet<TypeReference>();
@@ -53,13 +59,11 @@ namespace NGUnityVersioner
 				return null;
 			}
 
-			AssemblyUsages.assembliesMeta.Clear();
-
 			AssemblyUsages	usages;
 
 			using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Extracted usages from many assemblies"))
 			{
-				usages = AssemblyUsagesExtractor.InspectAssembly(assembliesPath, filterNamespaces, targetNamespaces);
+				usages = AssemblyUsages.InspectAssembly(assembliesPath, filterNamespaces, targetNamespaces);
 			}
 
 			List<TypeReference>		types = new List<TypeReference>(usages.types);
@@ -71,15 +75,11 @@ namespace NGUnityVersioner
 				usages.FilterReferences(types, fields, methods);
 			}
 
-			//if (useMultithreading == true)
-			//	Debug.Log("Running on " + Environment.ProcessorCount + " threads.");
-
 			List<Thread>				threads = new List<Thread>();
 			List<AssemblyUsagesResult>	results = new List<AssemblyUsagesResult>();
 			int							processorCount = Environment.ProcessorCount;
 			Exception					threadException = null;
 
-			AssemblyUsages.assembliesMeta.Clear();
 			foreach (string assemblyMetaPath in assemblyMetaPaths)
 			{
 				Action	callback = () =>
@@ -112,8 +112,6 @@ namespace NGUnityVersioner
 						{
 							result.ResolveReferences(types, fields, methods);
 						}
-
-						//this.DebugResult(result, AssemblyUsages.debug);
 
 						lock (results)
 						{
@@ -153,7 +151,6 @@ namespace NGUnityVersioner
 
 			if (Directory.Exists(outputMetaPath) == false)
 				Debug.LogWarning("Target folder for assembly meta files at \"" + outputMetaPath + "\" does not exist.");
-			AssemblyUsages.assembliesMeta.Clear();
 
 			foreach (string unityPath in unityPaths)
 			{
@@ -329,8 +326,6 @@ namespace NGUnityVersioner
 							result.ResolveReferences(types, fields, methods);
 						}
 
-						//this.DebugResult(result, AssemblyUsages.debug);
-
 						lock (results)
 						{
 							results.Add(result);
@@ -383,6 +378,30 @@ namespace NGUnityVersioner
 			results.Sort((a, b) => a.unityPath.CompareTo(b.unityPath));
 
 			return results.ToArray();
+		}
+
+		public static AssemblyUsages	InspectAssembly(IEnumerable<string> assembliesPath, string[] filterNamespaces, string[] targetNamespaces)
+		{
+			AssemblyUsages	result = new AssemblyUsages()
+			{
+				assemblies = new List<string>(assembliesPath).ToArray(),
+				filterNamespaces = filterNamespaces,
+				targetNamespaces = targetNamespaces,
+			};
+
+			foreach (string assemblyPath in assembliesPath)
+			{
+				using (AssemblyDefinition	assemblyDef = AssemblyDefinition.ReadAssembly(assemblyPath))
+				{
+					AssemblyUsagesExtractor.InspectAssembly(result, assemblyDef);
+				}
+			}
+
+			return result;
+		}
+
+		private	AssemblyUsages()
+		{
 		}
 
 		public bool	RegisterTypeRef(TypeReference typeRef)
@@ -568,129 +587,6 @@ namespace NGUnityVersioner
 				return false;
 
 			return true;
-		}
-
-		private void	DebugResult(AssemblyUsagesResult result, DebugItems display)
-		{
-			if ((display & DebugItems.HeaderMissingRefs) != 0)
-				Debug.Log($"Missing References ({result.missingTypes.Count + result.missingFields.Count + result.missingMethods.Count})");
-
-			if ((display & DebugItems.MissingRefs) != 0)
-			{
-				if (result.missingTypes.Count > 0)
-				{
-					Debug.Log($"  Missing Types ({result.missingTypes.Count})");
-					for (int j = 0, max2 = result.missingTypes.Count; j < max2; ++j)
-						Debug.Log("    " + result.missingTypes[j]);
-				}
-
-				if (result.missingFields.Count > 0)
-				{
-					Debug.Log($"  Missing Fields ({result.missingFields.Count})");
-					for (int j = 0, max2 = result.missingFields.Count; j < max2; ++j)
-						Debug.Log("    " + result.missingFields[j]);
-				}
-
-				if (result.missingMethods.Count > 0)
-				{
-					Debug.Log($"  Missing Methods ({result.missingMethods.Count})");
-					for (int j = 0, max2 = result.missingMethods.Count; j < max2; ++j)
-						Debug.Log("    " + result.missingMethods[j]);
-				}
-			}
-
-			if ((display & DebugItems.HeaderFoundRefs) != 0)
-				Debug.Log($"Founds Refs ({result.foundTypes.Count + result.foundFields.Count + result.foundMethods.Count})");
-
-			if ((display & DebugItems.FoundRefs) != 0)
-			{
-				if (result.foundTypes.Count > 0)
-				{
-					Debug.Log($"  Found Types ({result.foundTypes.Count})");
-					for (int j = 0, max2 = result.foundTypes.Count; j < max2; ++j)
-					{
-						Debug.Log("    " + result.foundTypes[j]);
-						if (result.foundTypes[j].ErrorMessage != null)
-							Debug.Log("      Error: " + result.foundTypes[j].ErrorMessage);
-					}
-				}
-
-				if (result.foundFields.Count > 0)
-				{
-					for (int j = 0, max2 = result.foundFields.Count; j < max2; ++j)
-					{
-						Debug.Log("    " + result.foundFields[j]);
-						if (result.foundFields[j].ErrorMessage != null)
-							Debug.Log("      Error: " + result.foundFields[j].ErrorMessage);
-					}
-				}
-
-				if (result.foundMethods.Count > 0)
-				{
-					for (int j = 0, max2 = result.foundMethods.Count; j < max2; ++j)
-					{
-						Debug.Log("    " + result.foundMethods[j]);
-						if (result.foundMethods[j].ErrorMessage != null)
-							Debug.Log("      Error: " + result.foundMethods[j].ErrorMessage);
-					}
-				}
-			}
-			else
-			{
-				if (result.foundTypes.Count > 0)
-				{
-					for (int j = 0, first = 0, max2 = result.foundTypes.Count; j < max2; ++j)
-					{
-						if (result.foundTypes[j].ErrorMessage != null)
-						{
-							if (first == 0)
-							{
-								first = 1;
-								Debug.Log("Found Types (with error)");
-							}
-
-							Debug.Log("  " + result.foundTypes[j]);
-							Debug.Log("    Error: " + result.foundTypes[j].ErrorMessage);
-						}
-					}
-				}
-
-				if (result.foundFields.Count > 0)
-				{
-					for (int j = 0, first = 0, max2 = result.foundFields.Count; j < max2; ++j)
-					{
-						if (result.foundFields[j].ErrorMessage != null)
-						{
-							if (first == 0)
-							{
-								first = 1;
-								Debug.Log("Found Fields (with error)");
-							}
-
-							Debug.Log("  " + result.foundFields[j]);
-							Debug.Log("    Error: " + result.foundFields[j].ErrorMessage);
-						}
-					}
-				}
-
-				if (result.foundMethods.Count > 0)
-				{
-					for (int j = 0, first = 0, max2 = result.foundMethods.Count; j < max2; ++j)
-					{
-						if (result.foundMethods[j].ErrorMessage != null)
-						{
-							if (first == 0)
-							{
-								first = 1;
-								Debug.Log("Found Methods (with error)");
-							}
-
-							Debug.Log("  " + result.foundMethods[j]);
-							Debug.Log("    Error: " + result.foundMethods[j].ErrorMessage);
-						}
-					}
-				}
-			}
 		}
 
 		private class CompareType : IEqualityComparer<TypeReference>
