@@ -1,7 +1,7 @@
 {
   "name": "com.mikilo.ng-unity-versioner",
   "displayName": "NG Unity Versioner",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "unity": "2017.4",
   "description": "Instantly check your code against any Unity version!",
   "keywords": [
@@ -20,18 +20,6 @@
     "source"
   ],
   "category": "scripting",
-  "scopedRegistries": [
-    {
-      "name": "Mikilo",
-      "url": "https://npm.pkg.github.com",
-      "scopes": [
-        "com.mikilo"
-      ]
-    }
-  ],
-  "dependencies": {
-    "com.mikilo.ng-core": "1.0.0"
-  },
   "author": {
     "name": "Micha\u00ebl Nguyen",
     "email": "support@ngtools.tech",
