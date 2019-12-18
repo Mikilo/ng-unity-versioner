@@ -1,0 +1,40 @@
+{
+  "name": "com.mikilo.ng-unity-versioner",
+  "displayName": "NG Unity Versioner",
+  "version": "0.1.0",
+  "unity": "2017.4",
+  "description": "Instantly check your code against any Unity version!",
+  "keywords": [
+    "ng",
+    "tool",
+    "tools",
+    "mikilo",
+    "unity",
+    "versioner",
+    "sabresaurus",
+    "compile",
+    "version",
+    "check",
+    "compatibility",
+    "code",
+    "source"
+  ],
+  "category": "scripting",
+  "scopedRegistries": [
+    {
+      "name": "Mikilo",
+      "url": "https://npm.pkg.github.com",
+      "scopes": [
+        "com.mikilo"
+      ]
+    }
+  ],
+  "dependencies": {
+    "com.mikilo.ng-core": "1.0.0"
+  },
+  "author": {
+    "name": "Micha\u00ebl Nguyen",
+    "email": "support@ngtools.tech",
+    "url": "https://assetstore.unity.com/publishers/12138"
+  }
+}
