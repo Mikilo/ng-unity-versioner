@@ -1,7 +1,7 @@
 {
   "name": "com.mikilo.ng-unity-versioner",
   "displayName": "NG Unity Versioner",
-  "version": "0.1.1",
+  "version": "0.1.0",
   "unity": "2017.4",
   "description": "Instantly check your code against any Unity version!",
   "keywords": [
