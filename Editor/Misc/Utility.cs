@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Mono.Cecil;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
@@ -6,6 +8,26 @@ namespace NGUnityVersioner
 {
 	public class Utility : NGToolsEditor.Utility
 	{
+		public static string	GetObsoleteMessage(ICustomAttributeProvider attributeProvider)
+		{
+			if (attributeProvider.HasCustomAttributes == true)
+			{
+				for (int i = 0, max = attributeProvider.CustomAttributes.Count; i < max; ++i)
+				{
+					CustomAttribute	attribute = attributeProvider.CustomAttributes[i];
+
+					if (attribute.AttributeType.FullName == typeof(ObsoleteAttribute).FullName)
+					{
+						if (attribute.HasConstructorArguments == true)
+							return attribute.ConstructorArguments[0].Value.ToString();
+						return string.Empty;
+					}
+				}
+			}
+
+			return null;
+		}
+
 		private static Dictionary<string, string>	pathsVersions = new Dictionary<string, string>();
 
 		/// <summary>Looks into Unity installs, then into ProjectSettings, then path.</summary>
@@ -83,7 +105,7 @@ namespace NGUnityVersioner
 			if (dot == -1)
 			{
 				version = string.Empty;
-				Utility.pathsVersions.Add(filePath, version);
+				Utility.pathsVersions.Add(path, version);
 				return version;
 			}
 
@@ -92,16 +114,25 @@ namespace NGUnityVersioner
 			if (dot == -1)
 			{
 				version = string.Empty;
-				Utility.pathsVersions.Add(filePath, version);
+				Utility.pathsVersions.Add(path, version);
 				return version;
 			}
 
 			// Find the earliest non-numeric char.
 			int	offset = 1;
-			while (filePath[dot - offset - 1] >= '0' && filePath[dot - offset - 1] <= '9')
-				++offset;
 
-			string	unityVersion = filePath.Substring(dot - offset, filePath.Length - (dot - offset));
+			if (offset < dot)
+			{
+				n = dot - offset - 1;
+
+				while (n >= 0 && filePath[n] >= '0' && filePath[n] <= '9')
+				{
+					++offset;
+					--n;
+				}
+			}
+
+			string unityVersion = filePath.Substring(dot - offset, filePath.Length - (dot - offset));
 
 			for (int i = unityVersion.LastIndexOf('.') + 1; i < unityVersion.Length; i++)
 			{

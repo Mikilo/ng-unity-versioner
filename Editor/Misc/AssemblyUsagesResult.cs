@@ -9,9 +9,8 @@ namespace NGUnityVersioner
 	[Serializable]
 	public class AssemblyUsagesResult
 	{
-		public string			unityPath;
 		public AssemblyUsages	assemblyUsages;
-		public AssemblyMeta[]	assembliesMeta;
+		public UnityMeta		unityMeta;
 		public List<TypeMeta>	missingTypes = new List<TypeMeta>();
 		public List<FieldMeta>	missingFields = new List<FieldMeta>();
 		public List<MethodMeta>	missingMethods = new List<MethodMeta>();
@@ -55,7 +54,7 @@ namespace NGUnityVersioner
 			//	}
 			//}
 
-			int	assembliesMetaLength = this.assembliesMeta.Length;
+			int	assembliesMetaLength = this.unityMeta.AssembliesMeta.Length;
 
 			foreach (TypeReference typeRef in types)
 			{
@@ -63,7 +62,7 @@ namespace NGUnityVersioner
 
 				for (; j < assembliesMetaLength; ++j)
 				{
-					TypeMeta	meta = this.assembliesMeta[j].Resolve(typeRef);
+					TypeMeta	meta = this.unityMeta.AssembliesMeta[j].Resolve(typeRef);
 
 					if (meta != null)
 					{
@@ -84,9 +83,9 @@ namespace NGUnityVersioner
 
 					for (; j < assembliesMetaLength; ++j)
 					{
-						for (int k = 0, max = this.assembliesMeta[j].Types.Length; k < max; ++k)
+						for (int k = 0, max = this.unityMeta.AssembliesMeta[j].Types.Length; k < max; ++k)
 						{
-							TypeMeta	typeMeta = this.assembliesMeta[j].Types[k];
+							TypeMeta	typeMeta = this.unityMeta.AssembliesMeta[j].Types[k];
 
 							if (typeMeta.Name == typeRefName)
 							{
@@ -109,7 +108,7 @@ namespace NGUnityVersioner
 
 				for (; j < assembliesMetaLength; ++j)
 				{
-					FieldMeta	meta = this.assembliesMeta[j].Resolve(fieldRef);
+					FieldMeta	meta = this.unityMeta.AssembliesMeta[j].Resolve(fieldRef);
 
 					if (meta != null)
 					{
@@ -129,7 +128,7 @@ namespace NGUnityVersioner
 
 				for (; j < assembliesMetaLength; ++j)
 				{
-					MethodMeta	meta = this.assembliesMeta[j].Resolve(methodRef);
+					MethodMeta	meta = this.unityMeta.AssembliesMeta[j].Resolve(methodRef);
 
 					if (meta != null)
 					{
@@ -150,7 +149,7 @@ namespace NGUnityVersioner
 			int	warningsCount = this.foundTypes.Count + this.foundFields.Count + this.foundMethods.Count;
 
 			buffer.Append("Unity : ");
-			buffer.AppendLine(Utility.GetUnityVersion(this.unityPath));
+			buffer.AppendLine(Utility.GetUnityVersion(this.unityMeta.Version));
 			buffer.Append("Inspected : ");
 
 			for (int j = 0, max2 = this.assemblyUsages.Assemblies.Length; j < max2; ++j)

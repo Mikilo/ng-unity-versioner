@@ -61,7 +61,7 @@ namespace NGUnityVersioner
 		public	MethodMeta(MethodDefinition methodDef)
 		{
 			this.name = methodDef.Name;
-			this.errorMessage = AssemblyMeta.GetObsoleteMessage(methodDef);
+			this.errorMessage = Utility.GetObsoleteMessage(methodDef);
 			this.isPublic = methodDef.IsPublic;
 
 			this.declaringType = methodDef.DeclaringType.FullName;

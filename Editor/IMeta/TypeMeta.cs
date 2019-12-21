@@ -98,7 +98,7 @@ namespace NGUnityVersioner
 			this.@namespace = typeDef.Namespace;
 			this.name = typeDef.Name;
 			this.isPublic = typeDef.IsPublic;
-			this.errorMessage = AssemblyMeta.GetObsoleteMessage(typeDef);
+			this.errorMessage = Utility.GetObsoleteMessage(typeDef);
 
 			if (typeDef.HasEvents == true)
 			{

@@ -49,24 +49,24 @@ namespace NGUnityVersioner
 					int						warningsCount = result.foundTypes.Count + result.foundFields.Count + result.foundMethods.Count;
 
 					if (missingRefsCount + warningsCount == 0)
-						this.resultsAsLabel[i] = Utility.GetUnityVersion(result.unityPath) + " <color=green>(Fully compatible)</color>";
+						this.resultsAsLabel[i] = result.unityMeta.Version + " <color=green>(Fully compatible)</color>";
 					else if (missingRefsCount + warningsCount == 1)
 					{
 						this.resultsAnomalyAsLabel[i] = (missingRefsCount + warningsCount) + " anomaly detected";
 
 						if (missingRefsCount > 0)
-							this.resultsAsLabel[i] = Utility.GetUnityVersion(result.unityPath) + " <color=red>(" + (missingRefsCount + warningsCount) + " anomaly)</color>";
+							this.resultsAsLabel[i] = result.unityMeta.Version + " <color=red>(" + (missingRefsCount + warningsCount) + " anomaly)</color>";
 						else
-							this.resultsAsLabel[i] = Utility.GetUnityVersion(result.unityPath) + " (" + (missingRefsCount + warningsCount) + " anomaly)";
+							this.resultsAsLabel[i] = result.unityMeta.Version + " (" + (missingRefsCount + warningsCount) + " anomaly)";
 					}
 					else
 					{
 						this.resultsAnomalyAsLabel[i] = (missingRefsCount + warningsCount) + " anomalies detected";
 
 						if (missingRefsCount > 0)
-							this.resultsAsLabel[i] = Utility.GetUnityVersion(result.unityPath) + " <color=red>(" + (missingRefsCount + warningsCount) + " anomalies)</color>";
+							this.resultsAsLabel[i] = result.unityMeta.Version + " <color=red>(" + (missingRefsCount + warningsCount) + " anomalies)</color>";
 						else
-							this.resultsAsLabel[i] = Utility.GetUnityVersion(result.unityPath) + " (" + (missingRefsCount + warningsCount) + " anomalies)";
+							this.resultsAsLabel[i] = result.unityMeta.Version + " (" + (missingRefsCount + warningsCount) + " anomalies)";
 					}
 				}
 			}
@@ -106,7 +106,7 @@ namespace NGUnityVersioner
 						r.width = AssemblyUsagesResultWindow.InspectMetaButtonWidth;
 						if (GUI.Button(r, "Inspect Meta", EditorStyles.toolbarButton) == true)
 						{
-							Utility.OpenWindow<AssemblyMetaWindow>(AssemblyMetaWindow.Title, true, w => w.meta = result.assembliesMeta);
+							Utility.OpenWindow<AssemblyMetaWindow>(AssemblyMetaWindow.Title, true, w => w.meta = result.unityMeta.AssembliesMeta);
 						}
 					}
 

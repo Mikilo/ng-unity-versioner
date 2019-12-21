@@ -22,7 +22,7 @@ namespace NGUnityVersioner
 				tips = new Tip[]
 				{
 					new Tip("Hold Ctrl when toggling any checkbox to only focus it.", () => XGUIHighlightManager.Highlight(NGUnityVersionerWindow.Title + ".checkbox")),
-					new Tip("Use multithreading to speed up the execution. But it will display results randomly.", () => XGUIHighlightManager.Highlight(NGUnityVersionerWindow.Title + ".useMultithreading")),
+					new Tip("Use multithreading to speed up the execution.", () => XGUIHighlightManager.Highlight(NGUnityVersionerWindow.Title + ".useMultithreading")),
 					new Tip("If you need a specific version, contact me at support@ngtools.tech.", () => ContactFormWizard.Open(ContactFormWizard.Subject.Contact, NGUnityVersionerWindow.Title, string.Empty))
 				}
 			}
@@ -53,7 +53,7 @@ namespace NGUnityVersioner
 
 		private ErrorPopup	errorPopup = new ErrorPopup(NGUnityVersionerWindow.Title, "An error occurred, try to reopen " + NGUnityVersionerWindow.Title + ". If it persists contact the author.");
 
-		[MenuItem(NGToolsEditor.Constants.MenuItemPath + NGUnityVersionerWindow.Title, priority = - 50)]
+		[MenuItem("Window/" + NGUnityVersionerWindow.Title, priority = - 50)]
 		public static void	Open()
 		{
 			Utility.OpenWindow<NGUnityVersionerWindow>(NGUnityVersionerWindow.Title);
@@ -289,6 +289,12 @@ namespace NGUnityVersioner
 
 						if (GUILayout.Button("None", EditorStyles.toolbarButton) == true)
 							this.activeVersions.Clear();
+
+						Utility.content.text = "Installs";
+						Utility.content.image = UtilityResources.FolderIcon;
+						if (GUILayout.Button(Utility.content, EditorStyles.toolbarButton, GUILayoutOptionPool.MaxWidth(100F)) == true)
+							UnityInstallsWindow.Open();
+						Utility.content.image = null;
 					}
 
 					GUILayout.Space(3F);
@@ -345,52 +351,54 @@ namespace NGUnityVersioner
 
 				EditorGUILayout.HelpBox("BEWARE! Compatibility check does not handle Unity API moved to Package Manager.", MessageType.Warning);
 				EditorGUILayout.HelpBox("BEWARE! API references between pre-processing directives can not be handled.", MessageType.Warning);
-				//EditorGUILayout.HelpBox("BEWARE! Leaving windows (Assembly Usages & Assembly Inspector) opened might greatly increase editor init duration, due to a massive amount of data to be serialized/deserialized.", MessageType.Warning);
 
 				using (new EditorGUILayout.HorizontalScope())
 				{
-					if (GUILayout.Button("Check Compatibilities") == true)
+					using (BgColorContentRestorer.Get(GeneralStyles.HighlightActionButton))
 					{
-						List<string>	targetAssemblies = new List<string>();
-
-						for (int i = 0, max = this.targetAssemblies.Count; i < max; ++i)
+						if (GUILayout.Button("Check Compatibilities") == true)
 						{
-							var element = this.targetAssemblies[i];
+							List<string>	targetAssemblies = new List<string>();
 
-							if (Directory.Exists(this.targetAssemblies[i]) == true)
+							for (int i = 0, max = this.targetAssemblies.Count; i < max; ++i)
 							{
-								string[]	subAssemblies = Directory.GetFiles(this.targetAssemblies[i], "*.dll");
+								var element = this.targetAssemblies[i];
 
-								targetAssemblies.AddRange(subAssemblies);
+								if (Directory.Exists(this.targetAssemblies[i]) == true)
+								{
+									string[]	subAssemblies = Directory.GetFiles(this.targetAssemblies[i], "*.dll");
+
+									targetAssemblies.AddRange(subAssemblies);
+								}
+								else if (File.Exists(this.targetAssemblies[i]) == true)
+									targetAssemblies.Add(this.targetAssemblies[i]);
+								else
+									Debug.LogWarning("Assembly at \"" + this.targetAssemblies[i] + "\" does not exist.");
 							}
-							else if (File.Exists(this.targetAssemblies[i]) == true)
-								targetAssemblies.Add(this.targetAssemblies[i]);
-							else
-								Debug.LogWarning("Assembly at \"" + this.targetAssemblies[i] + "\" does not exist.");
-						}
 
-						if (targetAssemblies.Count == 0)
-						{
-							this.ShowNotification(new GUIContent("No target assembly available."));
-							Debug.LogWarning("No target assembly available.");
-							return;
-						}
+							if (targetAssemblies.Count == 0)
+							{
+								this.ShowNotification(new GUIContent("No target assembly available."));
+								Debug.LogWarning("No target assembly available.");
+								return;
+							}
 
-						if (this.activeMetas.Count == 0 && this.activeVersions.Count == 0)
-						{
-							this.ShowNotification(new GUIContent("No meta or version selected."));
-							Debug.LogWarning("No meta or version selected.");
-							return;
-						}
+							if (this.activeMetas.Count == 0 && this.activeVersions.Count == 0)
+							{
+								this.ShowNotification(new GUIContent("No meta or version selected."));
+								Debug.LogWarning("No meta or version selected.");
+								return;
+							}
 
-						targetAssemblies.Distinct();
+							targetAssemblies.Distinct();
 
-						using (WatchTime.Get("Check Compatibilities"))
-						{
-							AssemblyUsagesResult[]	results = AssemblyUsages.CheckCompatibilities(targetAssemblies, this.filterNamespaces.ToArray(), this.targetNamespaces.ToArray(), this.activeMetas, this.activeVersions, this.metaVersionsPath, this.useMultithreading);
+							using (WatchTime.Get("Check Compatibilities"))
+							{
+								AssemblyUsagesResult[]	results = AssemblyUsages.CheckCompatibilities(targetAssemblies, this.filterNamespaces.ToArray(), this.targetNamespaces.ToArray(), this.activeMetas, this.activeVersions, this.metaVersionsPath, this.useMultithreading);
 
-							if (results != null)
-								Utility.OpenWindow<AssemblyUsagesResultWindow>(AssemblyUsagesResultWindow.Title, true, w => w.SetResults(results));
+								if (results != null)
+									Utility.OpenWindow<AssemblyUsagesResultWindow>(AssemblyUsagesResultWindow.Title, true, w => w.SetResults(results));
+							}
 						}
 					}
 
@@ -412,16 +420,20 @@ namespace NGUnityVersioner
 
 			for (int i = 0, max = this.targetAssemblies.Count; i < max; ++i)
 			{
-				var element = this.targetAssemblies[i];
+				string	path = this.targetAssemblies[i];
 
-				if (Directory.Exists(this.targetAssemblies[i]) == true)
+				if (Directory.Exists(path) == true)
 				{
-					string[]	subAssemblies = Directory.GetFiles(this.targetAssemblies[i], "*.dll");
+					string[]	subAssemblies = Directory.GetFiles(path, "*.dll");
 
-					targetAssemblies.AddRange(subAssemblies);
+					for (int j = 0, max2 = subAssemblies.Length; j < max2; ++j)
+					{
+						if (targetAssemblies.Contains(subAssemblies[j]) == false)
+							targetAssemblies.Add(subAssemblies[j]);
+					}
 				}
-				else if (File.Exists(this.targetAssemblies[i]) == true)
-					targetAssemblies.Add(this.targetAssemblies[i]);
+				else if (path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) == true && File.Exists(path) == true)
+					targetAssemblies.Add(path);
 			}
 
 			targetAssemblies.Distinct();

@@ -34,7 +34,7 @@ namespace NGUnityVersioner
 		public	FieldMeta(FieldDefinition fieldDef)
 		{
 			this.name = fieldDef.Name;
-			this.errorMessage = AssemblyMeta.GetObsoleteMessage(fieldDef);
+			this.errorMessage = Utility.GetObsoleteMessage(fieldDef);
 
 			this.declaringType = fieldDef.DeclaringType.FullName;
 			this.type = fieldDef.FieldType.FullName;

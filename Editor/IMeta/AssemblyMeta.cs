@@ -27,84 +27,6 @@ namespace NGUnityVersioner
 		private TypeReference	lastTypeRef;
 		private TypeMeta		lastTypeRefAsMeta;
 
-		public static void				Save(string filepath, params AssemblyMeta[] assemblies)
-		{
-			using (MemoryStream assembliesStream = new MemoryStream(1 << 20)) // 1MB
-			using (BinaryWriter assembliesWriter = new BinaryWriter(assembliesStream))
-			{
-				StringTable	sharedStringTable = new StringTable();
-
-				// Write assemblies into the buffer to populate the string table.
-				for (int i = 0, max = assemblies.Length; i < max; ++i)
-					assemblies[i].Save(assembliesWriter, sharedStringTable);
-
-				using (BinaryWriter finalWriter = new BinaryWriter(File.Open(filepath, FileMode.Create, FileAccess.Write)))
-				{
-					using (MemoryStream stringTableStream = new MemoryStream(1 << 20))
-					using (BinaryWriter stringTableWriter = new BinaryWriter(stringTableStream))
-					{
-						sharedStringTable.Save(stringTableWriter);
-
-						using (MemoryStream GZipStringTableStream = new MemoryStream(1 << 20))
-						{
-							using (GZipStream compressionStream = new GZipStream(finalWriter.BaseStream, CompressionMode.Compress, true))
-							{
-								stringTableStream.WriteTo(compressionStream);
-								assembliesStream.WriteTo(compressionStream);
-							}
-						}
-					}
-				}
-			}
-		}
-
-		public static AssemblyMeta[]	Load(string filepath)
-		{
-			using (FileStream	fileStream = File.Open(filepath, FileMode.Open, FileAccess.Read))
-			using (GZipStream	decompressionStream = new GZipStream(fileStream, CompressionMode.Decompress))
-			{
-				using (MemoryStream decompressedStringTableStream = new MemoryStream(1 << 20))
-				{
-					decompressionStream.CopyTo(decompressedStringTableStream);
-					decompressedStringTableStream.Seek(0, SeekOrigin.Begin);
-
-					using (BinaryReader reader = new BinaryReader(decompressedStringTableStream))
-					{
-						StringTable	sharedStringTable;
-
-						sharedStringTable = new StringTable(reader);
-
-						List<AssemblyMeta>	result = new List<AssemblyMeta>();
-
-						while (reader.BaseStream.Position != reader.BaseStream.Length)
-							result.Add(new AssemblyMeta(reader, sharedStringTable));
-
-						return result.ToArray();
-					}
-				}
-			}
-		}
-
-		public static string			GetObsoleteMessage(ICustomAttributeProvider attributeProvider)
-		{
-			if (attributeProvider.HasCustomAttributes == true)
-			{
-				for (int i = 0, max = attributeProvider.CustomAttributes.Count; i < max; ++i)
-				{
-					CustomAttribute	attribute = attributeProvider.CustomAttributes[i];
-
-					if (attribute.AttributeType.FullName == typeof(ObsoleteAttribute).FullName)
-					{
-						if (attribute.HasConstructorArguments == true)
-							return attribute.ConstructorArguments[0].Value.ToString();
-						return string.Empty;
-					}
-				}
-			}
-
-			return null;
-		}
-
 		public	AssemblyMeta(BinaryReader reader, StringTable sharedStringTable = null)
 		{
 			if (sharedStringTable == null)
@@ -127,9 +49,9 @@ namespace NGUnityVersioner
 			}
 		}
 
-		public	AssemblyMeta(string assemblyPath)
+		public	AssemblyMeta(string relativePath, string assemblyPath)
 		{
-			this.assemblyPath = assemblyPath;
+			this.assemblyPath = relativePath;
 
 			using (AssemblyDefinition assemblyDef = AssemblyDefinition.ReadAssembly(assemblyPath))
 			{

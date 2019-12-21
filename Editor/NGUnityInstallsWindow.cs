@@ -11,8 +11,8 @@ namespace NGUnityVersioner
 
 		private Vector2	scrollPosition;
 
-		[MenuItem(Constants.MenuItemPath + UnityInstallsWindow.Title, priority = -50)]
-		private static void	Open()
+		//[MenuItem(Constants.MenuItemPath + UnityInstallsWindow.Title, priority = -50)]
+		public static void	Open()
 		{
 			EditorWindow.GetWindow<UnityInstallsWindow>(true, UnityInstallsWindow.Title, true);
 		}

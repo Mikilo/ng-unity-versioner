@@ -34,7 +34,7 @@ namespace NGUnityVersioner
 
 		public static DebugItems	debug = DebugItems.None;
 
-		private static Dictionary<string, AssemblyMeta[]>	assembliesMeta = new Dictionary<string, AssemblyMeta[]>();
+		private static Dictionary<string, UnityMeta>	assembliesMeta = new Dictionary<string, UnityMeta>();
 
 		[SerializeField]
 		private string[]	assemblies;
@@ -59,9 +59,10 @@ namespace NGUnityVersioner
 				return null;
 			}
 
+			List<string>	parsedMeta = new List<string>();
 			AssemblyUsages	usages;
 
-			using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Extracted usages from many assemblies"))
+			using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Extracted usages from target assemblies"))
 			{
 				usages = AssemblyUsages.InspectAssembly(assembliesPath, filterNamespaces, targetNamespaces);
 			}
@@ -70,7 +71,7 @@ namespace NGUnityVersioner
 			List<FieldReference>	fields = new List<FieldReference>(usages.fields);
 			List<MethodReference>	methods = new List<MethodReference>(usages.methods);
 
-			using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Filtering Usages (Targeting " + string.Join(", ", targetNamespaces) + ")"))
+			using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Filtering usages (Targeting " + string.Join(", ", targetNamespaces) + ")"))
 			{
 				usages.FilterReferences(types, fields, methods);
 			}
@@ -86,27 +87,35 @@ namespace NGUnityVersioner
 				{
 					try
 					{
-						AssemblyMeta[]	assembliesMeta;
+						UnityMeta	unityMeta;
 
-						if (AssemblyUsages.assembliesMeta.TryGetValue(assemblyMetaPath, out assembliesMeta) == false)
+						lock (parsedMeta)
+						{
+							if (parsedMeta.Contains(assemblyMetaPath) == true)
+								return;
+
+							parsedMeta.Add(assemblyMetaPath);
+						}
+
+						if (AssemblyUsages.assembliesMeta.TryGetValue(assemblyMetaPath, out unityMeta) == false)
 						{
 							try
 							{
 								using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Read meta from \"" + assemblyMetaPath + "\""))
 								{
-									assembliesMeta = AssemblyMeta.Load(assemblyMetaPath);
+									unityMeta = UnityMeta.Load(assemblyMetaPath);
 								}
 							}
 							catch (Exception ex)
 							{
 								Debug.LogException(ex);
-								assembliesMeta = new AssemblyMeta[0];
+								unityMeta = new UnityMeta();
 							}
 
-							AssemblyUsages.assembliesMeta.Add(assemblyMetaPath, assembliesMeta);
+							AssemblyUsages.assembliesMeta.Add(assemblyMetaPath, unityMeta);
 						}
 
-						AssemblyUsagesResult	result = new AssemblyUsagesResult() { assemblyUsages = usages, unityPath = assemblyMetaPath, assembliesMeta = assembliesMeta };
+						AssemblyUsagesResult	result = new AssemblyUsagesResult() { assemblyUsages = usages, unityMeta = unityMeta };
 
 						using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Resolved for " + assemblyMetaPath))
 						{
@@ -154,14 +163,23 @@ namespace NGUnityVersioner
 
 			foreach (string unityPath in unityPaths)
 			{
-				string	assemblyMetaPath = Path.Combine(outputMetaPath, Utility.GetUnityVersion(unityPath) + "." + AssemblyUsages.MetaExtension);
+				string	unityVersion = Utility.GetUnityVersion(unityPath);
+				string	assemblyMetaPath = Path.Combine(outputMetaPath, unityVersion + "." + AssemblyUsages.MetaExtension);
 				Action	callback = () =>
 				{
 					try
 					{
-						AssemblyMeta[]	assembliesMeta;
+						UnityMeta	unityMeta;
 
-						if (AssemblyUsages.assembliesMeta.TryGetValue(assemblyMetaPath, out assembliesMeta) == false)
+						lock (parsedMeta)
+						{
+							if (parsedMeta.Contains(assemblyMetaPath) == true)
+								return;
+
+							parsedMeta.Add(assemblyMetaPath);
+						}
+
+						if (AssemblyUsages.assembliesMeta.TryGetValue(assemblyMetaPath, out unityMeta) == false)
 						{
 							try
 							{
@@ -243,7 +261,7 @@ namespace NGUnityVersioner
 
 										try
 										{
-											meta.Add(new AssemblyMeta(unityEditor));
+											meta.Add(new AssemblyMeta(unityEditor.Substring(unityPath.Length + 1), unityEditor));
 										}
 										catch (Exception)
 										{
@@ -255,7 +273,7 @@ namespace NGUnityVersioner
 										{
 											try
 											{
-												meta.Add(new AssemblyMeta(runtimeAssemblies[i]));
+												meta.Add(new AssemblyMeta(runtimeAssemblies[i].Substring(unityPath.Length + 1), runtimeAssemblies[i]));
 											}
 											catch (Exception)
 											{
@@ -269,7 +287,7 @@ namespace NGUnityVersioner
 											try
 											{
 												if (editorAssemblies[i] != null)
-													meta.Add(new AssemblyMeta(editorAssemblies[i]));
+													meta.Add(new AssemblyMeta(editorAssemblies[i].Substring(unityPath.Length + 1), editorAssemblies[i]));
 											}
 											catch (Exception)
 											{
@@ -282,7 +300,7 @@ namespace NGUnityVersioner
 										{
 											try
 											{
-												meta.Add(new AssemblyMeta(extensionAssemblies[i]));
+												meta.Add(new AssemblyMeta(extensionAssemblies[i].Substring(unityPath.Length + 1), extensionAssemblies[i]));
 											}
 											catch (Exception)
 											{
@@ -290,14 +308,14 @@ namespace NGUnityVersioner
 											}
 										}
 
-										assembliesMeta = meta.ToArray();
+										unityMeta = new UnityMeta(unityVersion, meta.ToArray());
 									}
 
 									if (assemblyMetaPath != null)
 									{
 										using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Save meta at \"" + assemblyMetaPath + "\""))
 										{
-											AssemblyMeta.Save(assemblyMetaPath, assembliesMeta);
+											unityMeta.Save(assemblyMetaPath);
 										}
 									}
 								}
@@ -305,23 +323,23 @@ namespace NGUnityVersioner
 								{
 									using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Read meta from \"" + assemblyMetaPath +"\""))
 									{
-										assembliesMeta = AssemblyMeta.Load(assemblyMetaPath);
+										unityMeta = UnityMeta.Load(assemblyMetaPath);
 									}
 								}
 							}
 							catch (Exception ex)
 							{
 								Debug.LogException(ex);
-								assembliesMeta = new AssemblyMeta[0];
+								unityMeta = new UnityMeta();
 								throw;
 							}
 
-							AssemblyUsages.assembliesMeta.Add(assemblyMetaPath, assembliesMeta);
+							AssemblyUsages.assembliesMeta.Add(assemblyMetaPath, unityMeta);
 						}
 
-						AssemblyUsagesResult	result = new AssemblyUsagesResult() { assemblyUsages = usages, unityPath = unityPath, assembliesMeta = assembliesMeta };
+						AssemblyUsagesResult	result = new AssemblyUsagesResult() { assemblyUsages = usages, unityMeta = unityMeta };
 
-						using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Resolved for " + assemblyMetaPath))
+						using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Resolved against " + unityMeta.Version))
 						{
 							result.ResolveReferences(types, fields, methods);
 						}
@@ -375,7 +393,7 @@ namespace NGUnityVersioner
 			if (threadException != null)
 				throw threadException;
 
-			results.Sort((a, b) => a.unityPath.CompareTo(b.unityPath));
+			results.Sort((a, b) => a.unityMeta.Version.CompareTo(b.unityMeta.Version));
 
 			return results.ToArray();
 		}

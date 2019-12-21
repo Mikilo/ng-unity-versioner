@@ -47,7 +47,7 @@ namespace NGUnityVersioner
 		public	PropertyMeta(PropertyDefinition property)
 		{
 			this.name = property.Name;
-			this.errorMessage = AssemblyMeta.GetObsoleteMessage(property);
+			this.errorMessage = Utility.GetObsoleteMessage(property);
 
 			this.declaringType = property.DeclaringType.FullName;
 			this.type = property.PropertyType.FullName;

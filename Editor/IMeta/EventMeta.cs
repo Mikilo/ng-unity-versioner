@@ -47,7 +47,7 @@ namespace NGUnityVersioner
 		public	EventMeta(EventDefinition @event)
 		{
 			this.name = @event.Name;
-			this.errorMessage = AssemblyMeta.GetObsoleteMessage(@event);
+			this.errorMessage = Utility.GetObsoleteMessage(@event);
 
 			this.declaringType = @event.DeclaringType.FullName;
 			this.type = @event.EventType.FullName;
