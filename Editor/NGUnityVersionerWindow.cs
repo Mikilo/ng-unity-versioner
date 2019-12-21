@@ -222,7 +222,43 @@ namespace NGUnityVersioner
 							EditorGUILayout.HelpBox("Folder does not exist.", MessageType.Warning);
 						else
 						{
-							this.assembliesMeta = Directory.GetFiles(this.metaVersionsPath, "*." + AssemblyUsages.MetaExtension);
+							List<string>	meta = new List<string>(Directory.GetFiles(this.metaVersionsPath, "*." + AssemblyUsages.MetaExtension));
+
+							System.Comparison<string> aa = (a, b) =>
+							{
+								string[]	aParts = a.Substring(this.metaVersionsPath.Length + 1).Split('.');
+								string[]	bParts = b.Substring(this.metaVersionsPath.Length + 1).Split('.');
+
+								if (aParts.Length != bParts.Length)
+									return bParts.Length - aParts.Length;
+
+								try
+								{
+									for (int i = 0, max = aParts.Length; i < max; ++i)
+									{
+										if (i < 2)
+										{
+											int	aNum = int.Parse(aParts[i]);
+											int	bNum = int.Parse(bParts[i]);
+
+											if (aNum != bNum)
+												return bNum - aNum;
+										}
+										else if (aParts[i] != bParts[i])
+											return bParts[i].CompareTo(aParts[i]);
+									}
+								}
+								catch (Exception)
+								{
+									return 0;
+								}
+
+								return b.CompareTo(a);
+							};
+
+							meta.Sort(aa);
+
+							this.assembliesMeta = meta.ToArray();
 							this.assembliesMetaAsLabel = new string[this.assembliesMeta.Length];
 
 							for (int i = 0, max = this.assembliesMeta.Length; i < max; ++i)
