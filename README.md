@@ -2,17 +2,19 @@
 Instantly check your code against any Unity version!
 
 ## Steps A:
-1. Write your target namespace
-2. Select the versions
-3. Click on "Check Compatibilities"
+1. Open Window > NG Unity Versioner
+2. Write your target namespace
+3. Select the versions (in <i>Assembly Meta Versions</i> or <i>Unity Install Paths</i>)
+4. Click on "Check Compatibilities"
 
 
 If you would like to check against a Unity version not available but installed locally in your computer.
 ## Steps B:
 
-1. Open Window > NG Tools > NG Unity Installations
-2. Add path to folder containing Unity installs (i.e. "C:/Program Files")
-3. Do <b>Steps A</b>.
+1. Open Window > NG Unity Versioner
+2. Click on <i>Installs</i> (on the right of <i>Unity Install Paths</i>)
+3. Add path to a folder containing Unity installs (i.e. "C:/Program Files")
+4. Do <b>Steps A</b>.
 
 
 # How to install:
@@ -35,9 +37,5 @@ If you would like to check against a Unity version not available but installed l
   }
 }
 ```
-
-
-### Note: If you have NG Tools Pro/Free already installed in your project, it won't work!
-
 
 Any feedback is welcome! 
