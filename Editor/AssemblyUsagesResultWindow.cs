@@ -1,4 +1,4 @@
-﻿using NGToolsEditor;
+﻿using NGToolsStandaloneEditor;
 using System;
 using System.IO;
 using System.Text;

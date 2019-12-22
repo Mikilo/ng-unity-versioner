@@ -6,7 +6,7 @@ using System.IO;
 
 namespace NGUnityVersioner
 {
-	public class Utility : NGToolsEditor.Utility
+	public class Utility : NGToolsStandaloneEditor.Utility
 	{
 		public static int	CompareVersionFromPath(string a, string b)
 		{

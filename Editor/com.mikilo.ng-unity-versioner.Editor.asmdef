@@ -1,7 +1,6 @@
 {
     "name": "com.mikilo.ng-unity-versioner.Editor",
     "references": [],
-    "optionalUnityReferences": [],
     "includePlatforms": [
         "Editor"
     ],
@@ -10,9 +9,11 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "Mono.Cecil.dll",
-        "NGCoreEditor.dll",
-        "NGCore.dll"
+        "NGCoreStandalone.dll",
+        "NGCoreStandaloneEditor.dll"
     ],
     "autoReferenced": true,
-    "defineConstraints": []
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

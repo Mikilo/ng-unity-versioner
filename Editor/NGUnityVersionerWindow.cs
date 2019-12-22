@@ -1,4 +1,4 @@
-﻿using NGToolsEditor;
+﻿using NGToolsStandaloneEditor;
 using System;
 using System.Collections.Generic;
 using System.IO;
