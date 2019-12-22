@@ -1,6 +1,21 @@
 # NG Unity Versioner
 Instantly check your code against any Unity version!
 
+
+Window <b>NG Unity Versioner</b>
+
+![Preview](https://forum.unity.com/attachments/upload_2019-12-21_19-13-36-png.533202/)
+
+
+Here is an example of code in namespace beginning with "NGT" verified against 2020.1.0a16 :
+
+![Code checked agaisnt 2020.1.0f16](https://forum.unity.com/attachments/upload_2019-12-21_18-57-57-png.533193/)
+
+
+Verifying all versions :
+
+![Code compatibilities summary](https://forum.unity.com/attachments/upload_2019-12-21_19-36-9-png.533208/)
+
 ## Steps A:
 1. Open Window > NG Unity Versioner
 2. Write your target namespace
