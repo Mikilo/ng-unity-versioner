@@ -8,6 +8,48 @@ namespace NGUnityVersioner
 {
 	public class Utility : NGToolsEditor.Utility
 	{
+		public static int	CompareVersionFromPath(string a, string b)
+		{
+			return Utility.CompareVersion(Path.GetFileNameWithoutExtension(a), Path.GetFileNameWithoutExtension(b));
+		}
+
+		public static int	CompareVersion(AssemblyUsagesResult a, AssemblyUsagesResult b)
+		{
+			return Utility.CompareVersion(a.unityMeta.Version, b.unityMeta.Version);
+		}
+
+		public static int	CompareVersion(string a, string b)
+		{
+			string[]	aParts = a.Split('.');
+			string[]	bParts = b.Split('.');
+
+			if (aParts.Length != bParts.Length)
+				return bParts.Length - aParts.Length;
+
+			try
+			{
+				for (int i = 0, max = aParts.Length; i < max; ++i)
+				{
+					if (i < 2)
+					{
+						int	aNum = int.Parse(aParts[i]);
+						int	bNum = int.Parse(bParts[i]);
+
+						if (aNum != bNum)
+							return bNum - aNum;
+					}
+					else if (aParts[i] != bParts[i])
+						return bParts[i].CompareTo(aParts[i]);
+				}
+			}
+			catch (Exception)
+			{
+				return 0;
+			}
+
+			return b.CompareTo(a);
+		}
+
 		public static string	GetObsoleteMessage(ICustomAttributeProvider attributeProvider)
 		{
 			if (attributeProvider.HasCustomAttributes == true)
@@ -94,6 +136,7 @@ namespace NGUnityVersioner
 				if (n == -1)
 				{
 					version = string.Empty;
+					Utility.pathsVersions.Add(path, version);
 					return version;
 				}
 

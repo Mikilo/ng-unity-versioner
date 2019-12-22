@@ -243,7 +243,7 @@ namespace NGUnityVersioner
 
 								using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 								{
-									EditorGUILayout.LabelField("Found Types (with error)");
+									EditorGUILayout.LabelField("Found Types with error (" + result.foundTypes.Count + ")");
 								}
 
 								for (int j = 0, max2 = result.foundTypes.Count; j < max2; ++j)
@@ -263,7 +263,7 @@ namespace NGUnityVersioner
 
 								using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 								{
-									EditorGUILayout.LabelField("Found Fields (with error)");
+									EditorGUILayout.LabelField("Found Fields with error (" + result.foundFields.Count + ")");
 								}
 
 								for (int j = 0, max2 = result.foundFields.Count; j < max2; ++j)
@@ -283,7 +283,7 @@ namespace NGUnityVersioner
 
 								using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 								{
-									EditorGUILayout.LabelField("Found Methods (with error)");
+									EditorGUILayout.LabelField("Found Methods with error (" + result.foundMethods.Count + ")");
 								}
 
 								for (int j = 0, max2 = result.foundMethods.Count; j < max2; ++j)

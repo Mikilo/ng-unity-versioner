@@ -61,6 +61,8 @@ namespace NGUnityVersioner
 
 		protected virtual void	OnEnable()
 		{
+			Utility.RestoreIcon(this);
+
 			Utility.LoadEditorPref(this, NGEditorPrefs.GetPerProjectPrefix());
 
 			this.listAssemblies = new ReorderableList(this.targetAssemblies, typeof(string));
@@ -222,43 +224,11 @@ namespace NGUnityVersioner
 							EditorGUILayout.HelpBox("Folder does not exist.", MessageType.Warning);
 						else
 						{
-							List<string>	meta = new List<string>(Directory.GetFiles(this.metaVersionsPath, "*." + AssemblyUsages.MetaExtension));
+							List<string>	rawMeta = new List<string>(Directory.GetFiles(this.metaVersionsPath, "*." + AssemblyUsages.MetaExtension));
 
-							System.Comparison<string> aa = (a, b) =>
-							{
-								string[]	aParts = a.Substring(this.metaVersionsPath.Length + 1).Split('.');
-								string[]	bParts = b.Substring(this.metaVersionsPath.Length + 1).Split('.');
+							rawMeta.Sort(Utility.CompareVersionFromPath);
 
-								if (aParts.Length != bParts.Length)
-									return bParts.Length - aParts.Length;
-
-								try
-								{
-									for (int i = 0, max = aParts.Length; i < max; ++i)
-									{
-										if (i < 2)
-										{
-											int	aNum = int.Parse(aParts[i]);
-											int	bNum = int.Parse(bParts[i]);
-
-											if (aNum != bNum)
-												return bNum - aNum;
-										}
-										else if (aParts[i] != bParts[i])
-											return bParts[i].CompareTo(aParts[i]);
-									}
-								}
-								catch (Exception)
-								{
-									return 0;
-								}
-
-								return b.CompareTo(a);
-							};
-
-							meta.Sort(aa);
-
-							this.assembliesMeta = meta.ToArray();
+							this.assembliesMeta = rawMeta.ToArray();
 							this.assembliesMetaAsLabel = new string[this.assembliesMeta.Length];
 
 							for (int i = 0, max = this.assembliesMeta.Length; i < max; ++i)
@@ -274,19 +244,13 @@ namespace NGUnityVersioner
 						{
 							string		metaFile = this.assembliesMeta[i];
 							Rect		r = GUILayoutUtility.GetRect(0F, Constants.SingleLineHeight, EditorStyles.label);
-							GUIContent	content = new GUIContent(Utility.GetUnityVersion(metaFile));
-							float		versionWidth = GUI.skin.label.CalcSize(content).x;
 
 							EditorGUI.BeginChangeCheck();
-							bool	toggle = EditorGUI.ToggleLeft(r, GUIContent.none, this.activeMetas.Contains(metaFile));
+							bool	toggle = EditorGUI.ToggleLeft(r, this.assembliesMetaAsLabel[i], this.activeMetas.Contains(metaFile));
 							Rect	r3 = r;
 							r3.width = 15F;
 							XGUIHighlightManager.DrawHighlight(NGUnityVersionerWindow.Title + ".checkbox", this, r3, XGUIHighlights.Wave | XGUIHighlights.Glow);
-							r.width -= versionWidth;
 							r.xMin += 15F;
-							EditorGUI.LabelField(r, this.assembliesMetaAsLabel[i]);
-							r.xMin -= 15F;
-							r.width += versionWidth;
 							if (EditorGUI.EndChangeCheck() == true)
 							{
 								if (Event.current.control == true)
@@ -301,13 +265,6 @@ namespace NGUnityVersioner
 									else
 										this.activeMetas.Remove(metaFile);
 								}
-							}
-							r.x += r.width - versionWidth;
-
-							using (new EditorGUI.DisabledScope(true))
-							{
-								r.width = versionWidth;
-								GUI.Label(r, content);
 							}
 						}
 					}

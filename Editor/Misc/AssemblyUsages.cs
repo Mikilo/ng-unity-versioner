@@ -393,7 +393,7 @@ namespace NGUnityVersioner
 			if (threadException != null)
 				throw threadException;
 
-			results.Sort((a, b) => a.unityMeta.Version.CompareTo(b.unityMeta.Version));
+			results.Sort(Utility.CompareVersion);
 
 			return results.ToArray();
 		}
