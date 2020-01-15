@@ -108,6 +108,7 @@ namespace NGUnityVersioner
 							}
 							catch (Exception ex)
 							{
+								Debug.LogError("Loading \"" + assemblyMetaPath + "\" failed.");
 								Debug.LogException(ex);
 								unityMeta = new UnityMeta();
 							}
