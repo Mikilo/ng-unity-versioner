@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.3.5] - 2020-01-28
+### Added
+- Type search.
+- Meta versions of Unity 2018.4.16f1, 2019.2.18f1, 2019.2.19f1, 2020.1.0a19, 2020.1.0a20.
+
 ## [0.3.4] - 2020-01-15
 ### Added
 - Context to an exception when loading a meta.

@@ -19,28 +19,26 @@ namespace NGUnityVersioner
 
 		public static UnityMeta	Load(string filepath)
 		{
-			using (FileStream	fileStream = File.Open(filepath, FileMode.Open, FileAccess.Read))
-			using (GZipStream	decompressionStream = new GZipStream(fileStream, CompressionMode.Decompress))
+			using (FileStream fileStream = File.Open(filepath, FileMode.Open, FileAccess.Read))
+			using (GZipStream decompressionStream = new GZipStream(fileStream, CompressionMode.Decompress))
+			using (MemoryStream decompressedStringTableStream = new MemoryStream(1 << 20))
 			{
-				using (MemoryStream decompressedStringTableStream = new MemoryStream(1 << 20))
+				decompressionStream.CopyTo(decompressedStringTableStream);
+				decompressedStringTableStream.Seek(0, SeekOrigin.Begin);
+
+				using (BinaryReader reader = new BinaryReader(decompressedStringTableStream))
 				{
-					decompressionStream.CopyTo(decompressedStringTableStream);
-					decompressedStringTableStream.Seek(0, SeekOrigin.Begin);
+					StringTable	sharedStringTable;
+					string		unityVersion = reader.ReadString();
 
-					using (BinaryReader reader = new BinaryReader(decompressedStringTableStream))
-					{
-						StringTable	sharedStringTable;
-						string		unityVersion = reader.ReadString();
+					sharedStringTable = new StringTable(reader);
 
-						sharedStringTable = new StringTable(reader);
+					List<AssemblyMeta>	result = new List<AssemblyMeta>();
 
-						List<AssemblyMeta>	result = new List<AssemblyMeta>();
+					while (reader.BaseStream.Position != reader.BaseStream.Length)
+						result.Add(new AssemblyMeta(reader, sharedStringTable));
 
-						while (reader.BaseStream.Position != reader.BaseStream.Length)
-							result.Add(new AssemblyMeta(reader, sharedStringTable));
-
-						return new UnityMeta(unityVersion, result.ToArray());
-					}
+					return new UnityMeta(unityVersion, result.ToArray());
 				}
 			}
 		}
@@ -69,22 +67,18 @@ namespace NGUnityVersioner
 					this.AssembliesMeta[i].Save(assembliesWriter, sharedStringTable);
 
 				using (BinaryWriter finalWriter = new BinaryWriter(File.Open(filepath, FileMode.Create, FileAccess.Write)))
+				using (MemoryStream stringTableStream = new MemoryStream(1 << 20))
+				using (BinaryWriter stringTableWriter = new BinaryWriter(stringTableStream))
 				{
-					using (MemoryStream stringTableStream = new MemoryStream(1 << 20))
-					using (BinaryWriter stringTableWriter = new BinaryWriter(stringTableStream))
+					stringTableWriter.Write(this.Version);
+
+					sharedStringTable.Save(stringTableWriter);
+
+					using (MemoryStream GZipStringTableStream = new MemoryStream(1 << 20))
+					using (GZipStream compressionStream = new GZipStream(finalWriter.BaseStream, CompressionMode.Compress, true))
 					{
-						stringTableWriter.Write(this.Version);
-
-						sharedStringTable.Save(stringTableWriter);
-
-						using (MemoryStream GZipStringTableStream = new MemoryStream(1 << 20))
-						{
-							using (GZipStream compressionStream = new GZipStream(finalWriter.BaseStream, CompressionMode.Compress, true))
-							{
-								stringTableStream.WriteTo(compressionStream);
-								assembliesStream.WriteTo(compressionStream);
-							}
-						}
+						stringTableStream.WriteTo(compressionStream);
+						assembliesStream.WriteTo(compressionStream);
 					}
 				}
 			}

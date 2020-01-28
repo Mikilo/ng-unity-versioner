@@ -20,8 +20,8 @@ namespace NGUnityVersioner
 
 		public static int	CompareVersion(string a, string b)
 		{
-			string[]	aParts = a.Split('.');
-			string[]	bParts = b.Split('.');
+			string[]	aParts = a.Split('.', 'a', 'b', 'f', 'r', 'p', 'x');
+			string[]	bParts = b.Split('.', 'a', 'b', 'f', 'r', 'p', 'x');
 
 			if (aParts.Length != bParts.Length)
 				return bParts.Length - aParts.Length;
@@ -30,16 +30,11 @@ namespace NGUnityVersioner
 			{
 				for (int i = 0, max = aParts.Length; i < max; ++i)
 				{
-					if (i < 2)
-					{
-						int	aNum = int.Parse(aParts[i]);
-						int	bNum = int.Parse(bParts[i]);
+					int	aNum = Utility.ParseInt(aParts[i]);
+					int	bNum = Utility.ParseInt(bParts[i]);
 
-						if (aNum != bNum)
-							return bNum - aNum;
-					}
-					else if (aParts[i] != bParts[i])
-						return bParts[i].CompareTo(aParts[i]);
+					if (aNum != bNum)
+						return bNum - aNum;
 				}
 			}
 			catch (Exception)
@@ -48,6 +43,23 @@ namespace NGUnityVersioner
 			}
 
 			return b.CompareTo(a);
+		}
+
+		public static int	ParseInt(string input)
+		{
+			int	n = 0;
+
+			for (int i = 0, max = input.Length; i < max; ++i)
+			{
+				char	c = input[i];
+
+				if (c >= '0' && c <= '9')
+					n = n * 10 + c - '0';
+				else
+					break;
+			}
+
+			return n;
 		}
 
 		public static string	GetObsoleteMessage(ICustomAttributeProvider attributeProvider)

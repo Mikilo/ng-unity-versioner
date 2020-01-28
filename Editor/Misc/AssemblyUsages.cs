@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using UnityEditor;
 using UnityEngine;
 
 namespace NGUnityVersioner
@@ -47,9 +48,66 @@ namespace NGUnityVersioner
 		public string[]		TargetNamespaces { get { return this.targetNamespaces; } }
 
 		// Events & properties are not "used" directly, they are replaced with fields & methods in IL.
-		public HashSet<TypeReference>		types = new HashSet<TypeReference>();
-		public HashSet<FieldReference>		fields = new HashSet<FieldReference>();
-		public HashSet<MethodReference>		methods = new HashSet<MethodReference>();
+		public HashSet<TypeReference>	types = new HashSet<TypeReference>();
+		public HashSet<FieldReference>	fields = new HashSet<FieldReference>();
+		public HashSet<MethodReference>	methods = new HashSet<MethodReference>();
+
+		public static UnityMeta	GetUnityMeta(string assemblyMetaPath)
+		{
+			UnityMeta	unityMeta;
+
+			if (AssemblyUsages.assembliesMeta.TryGetValue(assemblyMetaPath, out unityMeta) == false)
+			{
+				try
+				{
+					using ((debug & DebugItems.WatchTime) == 0 ? null : WatchTime.Get("Read meta from \"" + assemblyMetaPath + "\""))
+					{
+						unityMeta = UnityMeta.Load(assemblyMetaPath);
+					}
+				}
+				catch (Exception ex)
+				{
+					Debug.LogError("Loading \"" + assemblyMetaPath + "\" failed.");
+					Debug.LogException(ex);
+					unityMeta = new UnityMeta();
+				}
+
+				AssemblyUsages.assembliesMeta.Add(assemblyMetaPath, unityMeta);
+			}
+
+			return unityMeta;
+		}
+
+		public static UnityMeta[]	CheckType(string typeInput, IEnumerable<string> assemblyMetaPaths)
+		{
+			List<UnityMeta>	result = new List<UnityMeta>();
+
+			foreach (string assemblyMetaPath in assemblyMetaPaths)
+			{
+				UnityMeta	unityMeta = AssemblyUsages.GetUnityMeta(assemblyMetaPath);
+
+				for (int i = 0, max = unityMeta.AssembliesMeta.Length; i < max; ++i)
+				{
+					AssemblyMeta	assembly = unityMeta.AssembliesMeta[i];
+
+					for (int j = 0, max2 = assembly.Types.Length; j < max2; ++j)
+					{
+						TypeMeta	type = assembly.Types[j];
+
+						if (type.FullName == typeInput)
+						{
+							result.Add(unityMeta);
+							goto doubleBreak;
+						}
+					}
+				}
+
+				doubleBreak:
+				continue;
+			}
+
+			return result.ToArray();
+		}
 
 		public static AssemblyUsagesResult[]	CheckCompatibilities(IEnumerable<string> assembliesPath, string[] filterNamespaces, string[] targetNamespaces, IEnumerable<string> assemblyMetaPaths, IEnumerable<string> unityPaths, string outputMetaPath, bool useMultithreading = false)
 		{
