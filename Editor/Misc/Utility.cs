@@ -6,7 +6,7 @@ using System.IO;
 
 namespace NGUnityVersioner
 {
-	public class Utility : NGToolsStandaloneEditor.Utility
+	public class Utility : NGToolsStandalone_For_NGUnityVersionerEditor.Utility
 	{
 		public static int	CompareVersionFromPath(string a, string b)
 		{
@@ -45,11 +45,11 @@ namespace NGUnityVersioner
 			return b.CompareTo(a);
 		}
 
-		public static int	ParseInt(string input)
+		public static int	ParseInt(string input, int i = 0)
 		{
 			int	n = 0;
 
-			for (int i = 0, max = input.Length; i < max; ++i)
+			for (int max = input.Length; i < max; ++i)
 			{
 				char	c = input[i];
 

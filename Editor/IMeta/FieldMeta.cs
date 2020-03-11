@@ -1,6 +1,7 @@
 ﻿using Mono.Cecil;
 using System;
 using System.IO;
+using System.Text;
 using UnityEngine;
 
 namespace NGUnityVersioner
@@ -22,13 +23,14 @@ namespace NGUnityVersioner
 		private string	type;
 		public string	Type { get { return this.type; } }
 
-		public FieldMeta(IStringTable stringTable, TypeMeta declaringType, BinaryReader reader)
+		public	FieldMeta(ISharedTable stringTable, TypeMeta declaringType, BinaryReader reader)
 		{
-			this.name = stringTable.FetchString(reader.ReadInt24());
-			this.errorMessage = stringTable.FetchString(reader.ReadInt24());
+			byte[]	rawData = reader.ReadBytes(12);
 
-			this.declaringType = declaringType.FullName;
-			this.type = stringTable.FetchString(reader.ReadInt24());
+			this.name = stringTable.FetchString(rawData[0] | (rawData[1] << 8) | (rawData[2] << 16));
+			this.errorMessage = stringTable.FetchString(rawData[3] | (rawData[4] << 8) | (rawData[5] << 16));
+			this.declaringType = stringTable.FetchString(rawData[6] | (rawData[7] << 8) | (rawData[8] << 16));
+			this.type = stringTable.FetchString(rawData[9] | (rawData[10] << 8) | (rawData[11] << 16));
 		}
 
 		public	FieldMeta(FieldDefinition fieldDef)
@@ -47,16 +49,29 @@ namespace NGUnityVersioner
 			this.type = fieldRef.FieldType.FullName;
 		}
 
-		public void	Save(IStringTable stringTable, BinaryWriter writer)
+		public void	Save(ISharedTable stringTable, BinaryWriter writer)
 		{
-			writer.WriteInt24(stringTable.RegisterString(this.Name));
-			writer.WriteInt24(stringTable.RegisterString(this.ErrorMessage));
-			writer.WriteInt24(stringTable.RegisterString(this.Type));
+			writer.WriteInt24(stringTable.RegisterString(this.name));
+			writer.WriteInt24(stringTable.RegisterString(this.errorMessage));
+			writer.WriteInt24(stringTable.RegisterString(this.declaringType));
+			writer.WriteInt24(stringTable.RegisterString(this.type));
+		}
+
+		public int	GetSignatureHash()
+		{
+			StringBuilder	buffer = Utility.GetBuffer();
+
+			buffer.Append(this.name);
+			buffer.Append(this.errorMessage);
+			buffer.Append(this.declaringType);
+			buffer.Append(this.type);
+
+			return Utility.ReturnBuffer(buffer).GetHashCode();
 		}
 
 		public override string	ToString()
 		{
-			return this.Type + " " + this.DeclaringType + "::" + this.Name;
+			return this.type + " " + this.declaringType + "::" + this.name;
 		}
 
 		// Hack to bypass null-to-empty string serialization.

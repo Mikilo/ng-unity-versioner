@@ -2,18 +2,34 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
+using System.Text;
 using UnityEngine;
 
 namespace NGUnityVersioner
 {
 	[Serializable]
-	public class AssemblyMeta : ISerializationCallbackReceiver
+	public class AssemblyMeta : IMetaSignature
 	{
 		[SerializeField]
 		private string			assemblyPath;
 		public string			AssemblyPath { get { return this.assemblyPath; } }
-		public NamespaceMeta	GlobalNamespace { get; private set; }
+		public NamespaceMeta	globalNamespace;
+		public NamespaceMeta	GlobalNamespace
+		{
+			get
+			{
+				if (this.globalNamespace == null)
+				{
+					this.globalNamespace = new NamespaceMeta(string.Empty);
+
+					for (int i = 0, max = this.Types.Length; i < max; ++i)
+						this.GenerateNamespace(this.Types[i].Namespace).Types.Add(this.Types[i]);
+				}
+
+				return this.globalNamespace;
+			}
+		}
+
 		[SerializeField]
 		private TypeMeta[]		types;
 		public TypeMeta[]		Types { get { return this.types; } }
@@ -21,31 +37,37 @@ namespace NGUnityVersioner
 		private string[]		friendAssemblies;
 		public string[]			FriendAssemblies { get { return this.friendAssemblies; } }
 
-		private StringTable		stringTable = new StringTable();
-		private string			lastFullNamespace = null;
-		private NamespaceMeta	lastNamespace = null;
-		private TypeReference	lastTypeRef;
-		private TypeMeta		lastTypeRefAsMeta;
+		private Dictionary<string, NamespaceMeta>	namespaceCache = new Dictionary<string, NamespaceMeta>();
+		private Dictionary<string, TypeMeta>		typeCache = new Dictionary<string, TypeMeta>();
 
-		public	AssemblyMeta(BinaryReader reader, StringTable sharedStringTable = null)
+		public	AssemblyMeta(ISharedTable sharedStringTable, BinaryReader reader)
 		{
-			if (sharedStringTable == null)
-				this.stringTable = new StringTable(reader);
-			else
-				this.stringTable = sharedStringTable;
-
 			this.assemblyPath = reader.ReadString();
-			this.friendAssemblies = new string[reader.ReadUInt16()];
-			for (int i = 0, max = this.FriendAssemblies.Length; i < max; ++i)
-				this.FriendAssemblies[i] = reader.ReadString();
 
-			this.GlobalNamespace = new NamespaceMeta(string.Empty);
+			this.friendAssemblies = new string[reader.ReadUInt16()];
+
+			byte[]	rawData = reader.ReadBytes(this.friendAssemblies.Length * 3);
+
+			for (int i = 0, j = 0, max = this.friendAssemblies.Length; i < max; ++i, j += 3)
+				this.friendAssemblies[i] = sharedStringTable.FetchString(rawData[j] | (rawData[j + 1] << 8) | (rawData[j + 2] << 16));
+
 			this.types = new TypeMeta[reader.ReadInt32()];
 
-			for (int i = 0, max = this.Types.Length; i < max; ++i)
+			rawData = reader.ReadBytes(this.types.Length * 3);
+
+			for (int i = 0, j = 0, max = this.types.Length; i < max; ++i, j += 3)
 			{
-				this.Types[i] = new TypeMeta(this.stringTable, reader);
-				this.GenerateNamespace(this.Types[i].Namespace).Types.Add(this.Types[i]);
+				try
+				{
+					TypeMeta	typeMeta = sharedStringTable.FetchType(rawData[j] | (rawData[j + 1] << 8) | (rawData[j + 2] << 16));
+					this.types[i] = typeMeta;
+					this.typeCache.Add(typeMeta.FullName, typeMeta);
+				}
+				catch (Exception)
+				{
+					Debug.LogError("Type #" + i + " failed in assembly \"" + this.assemblyPath + "\".");
+					throw;
+				}
 			}
 		}
 
@@ -76,8 +98,6 @@ namespace NGUnityVersioner
 				else
 					this.friendAssemblies = new string[] { assemblyDef.Name.Name };
 
-				this.GlobalNamespace = new NamespaceMeta(string.Empty);
-
 				List<TypeMeta>	types = new List<TypeMeta>(1024);
 
 				for (int i = 0, max = assemblyDef.Modules.Count; i < max; ++i)
@@ -87,13 +107,7 @@ namespace NGUnityVersioner
 					if (moduleDef.HasTypes == true)
 					{
 						for (int j = 0, max2 = moduleDef.Types.Count; j < max2; ++j)
-						{
-							NamespaceMeta	namespaceMeta = this.GenerateNamespace(moduleDef.Types[j].Namespace);
-
-							TypeMeta	typeMeta = new TypeMeta(moduleDef.Types[j]);
-							namespaceMeta.Types.Add(typeMeta);
-							types.Add(typeMeta);
-						}
+							types.Add(new TypeMeta(moduleDef.Types[j]));
 					}
 				}
 
@@ -107,19 +121,25 @@ namespace NGUnityVersioner
 			if (string.IsNullOrEmpty(@namespace) == true)
 				return this.GlobalNamespace;
 
+			NamespaceMeta	hitNamespace;
+
+			if (this.namespaceCache.TryGetValue(@namespace, out hitNamespace) == true)
+				return hitNamespace;
+
 			string[]		targetNamespaces = @namespace.Split('.');
 			NamespaceMeta	currentNamespace = this.GlobalNamespace;
 
 			for (int n = 0, max = targetNamespaces.Length; n < max; ++n)
 			{
-				int	i = 0;
-				int	namespacesCount = currentNamespace.Namespaces.Count;
+				int		i = 0;
+				int		namespacesCount = currentNamespace.Namespaces.Count;
+				string	targetNamespace = targetNamespaces[n];
 
 				for (; i < namespacesCount; ++i)
 				{
 					NamespaceMeta	namespaceMeta = currentNamespace.Namespaces[i];
 
-					if (namespaceMeta.Name == targetNamespaces[n])
+					if (namespaceMeta.Name == targetNamespace)
 					{
 						currentNamespace = namespaceMeta;
 						break;
@@ -128,11 +148,13 @@ namespace NGUnityVersioner
 
 				if (i == namespacesCount)
 				{
-					NamespaceMeta	newNamespace = new NamespaceMeta(targetNamespaces[n]);
+					NamespaceMeta	newNamespace = new NamespaceMeta(targetNamespace);
 					currentNamespace.Namespaces.Add(newNamespace);
 					currentNamespace = newNamespace;
 				}
 			}
+
+			this.namespaceCache.Add(@namespace, currentNamespace);
 
 			return currentNamespace;
 		}
@@ -142,8 +164,10 @@ namespace NGUnityVersioner
 			if (@namespace == string.Empty)
 				return this.GlobalNamespace;
 
-			if (this.lastFullNamespace == @namespace)
-				return this.lastNamespace;
+			NamespaceMeta	hitNamespace;
+
+			if (this.namespaceCache.TryGetValue(@namespace, out hitNamespace) == true)
+				return hitNamespace;
 
 			string[]		targetNamespaces = @namespace.Split('.');
 			NamespaceMeta	currentNamespace = this.GlobalNamespace;
@@ -171,29 +195,18 @@ namespace NGUnityVersioner
 				}
 			}
 
-			this.lastFullNamespace = @namespace;
-			this.lastNamespace = currentNamespace;
+			this.namespaceCache.Add(@namespace, currentNamespace);
 
 			return currentNamespace;
 		}
 
 		public TypeMeta		Resolve(TypeReference typeRef)
 		{
-			if (this.lastTypeRef == typeRef)
-				return this.lastTypeRefAsMeta;
+			TypeMeta	typeMeta;
 
-			NamespaceMeta	namespaceMeta = this.Resolve(typeRef.Namespace);
+			this.typeCache.TryGetValue(this.GetFullname(typeRef), out typeMeta);
 
-			this.lastTypeRef = typeRef;
-
-			if (namespaceMeta != null)
-			{
-				this.lastTypeRefAsMeta = namespaceMeta.Resolve(this, typeRef);
-				return this.lastTypeRefAsMeta;
-			}
-
-			this.lastTypeRefAsMeta = null;
-			return null;
+			return typeMeta;
 		}
 
 		public EventMeta	Resolve(EventReference eventRef)
@@ -243,47 +256,56 @@ namespace NGUnityVersioner
 			return false;
 		}
 
-		public void	Save(BinaryWriter writer, StringTable sharedStringTable = null)
+		public int	GetSignatureHash()
 		{
-			StringTable	temp = this.stringTable;
+			StringBuilder	buffer = Utility.GetBuffer();
 
-			this.stringTable = sharedStringTable ?? temp;
+			buffer.Append(this.assemblyPath);
+			for (int i = 0, max = this.friendAssemblies.Length; i < max; ++i)
+				buffer.Append(this.friendAssemblies[i]);
 
-			using (MemoryStream memory = new MemoryStream(1 << 18)) // 256kB
-			using (BinaryWriter subWriter = new BinaryWriter(memory))
-			{
-				// Write Types into the buffer to populate the string table.
-				subWriter.Write(this.Types.Length);
-				for (int i = 0, max = this.Types.Length; i < max; ++i)
-					this.Types[i].Save(sharedStringTable, subWriter);
+			for (int i = 0, max = this.types.Length; i < max; ++i)
+				buffer.Append(this.types[i].GetSignatureHash());
 
-				if (sharedStringTable == null)
-					this.stringTable.Save(writer);
-
-				writer.Write(this.assemblyPath);
-				writer.Write((UInt16)this.FriendAssemblies.Length);
-				for (int i = 0, max = this.FriendAssemblies.Length; i < max; ++i)
-					writer.Write(this.FriendAssemblies[i]);
-
-				memory.WriteTo(writer.BaseStream);
-			}
-
-			this.stringTable = temp;
+			return Utility.ReturnBuffer(buffer).GetHashCode();
 		}
 
-		void	ISerializationCallbackReceiver.OnBeforeSerialize()
+		public void	Save(SharedTable sharedStringTable, BinaryWriter writer)
 		{
+			writer.Write(this.assemblyPath);
+
+			writer.Write((UInt16)this.friendAssemblies.Length);
+			for (int i = 0, max = this.friendAssemblies.Length; i < max; ++i)
+				writer.WriteInt24(sharedStringTable.RegisterString(this.friendAssemblies[i]));
+
+			writer.Write(this.types.Length);
+			for (int i = 0, max = this.types.Length; i < max; ++i)
+			{
+				try
+				{
+					writer.WriteInt24(sharedStringTable.RegisterType(this.types[i]));
+				}
+				catch (Exception ex)
+				{
+					Debug.LogError("Type #" + i + " failed.");
+					Debug.LogException(ex);
+					throw;
+				}
+			}
 		}
 
-		void	ISerializationCallbackReceiver.OnAfterDeserialize()
+		private string	GetFullname(TypeReference typeRef)
 		{
-			if (this.Types != null)
+			if (typeRef.IsGenericInstance == true)
 			{
-				this.GlobalNamespace = new NamespaceMeta(string.Empty);
+				string	ns = typeRef.Namespace;
 
-				for (int i = 0, max = this.Types.Length; i < max; ++i)
-					this.GenerateNamespace(this.Types[i].Namespace).Types.Add(this.Types[i]);
+				if (string.IsNullOrEmpty(ns) == false)
+					return ns + '.' + typeRef.Name;
+				return typeRef.Name;
 			}
+
+			return typeRef.FullName;
 		}
 	}
 }

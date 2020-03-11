@@ -65,11 +65,8 @@ namespace NGUnityVersioner
 
 					foreach (TypeDefinition typeDef in moduleDef.Types)
 					{
-						if ((filterNamespacesLength == 0 || result.FilterNamespaces.FirstOrDefault(ns => typeDef.Namespace.StartsWith(ns)) != null) &&
-							(filterNamespacesLength != 0 || result.TargetNamespaces.FirstOrDefault(ns => typeDef.Namespace.StartsWith(ns)) == null))
-						{
+						if (filterNamespacesLength == 0 || result.FilterNamespaces.FirstOrDefault(ns => typeDef.Namespace.StartsWith(ns)) != null)
 							AssemblyUsagesExtractor.InspectType(result, typeDef);
-						}
 					}
 				}
 			}

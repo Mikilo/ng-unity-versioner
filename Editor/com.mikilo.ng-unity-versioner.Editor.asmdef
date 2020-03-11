@@ -9,8 +9,8 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "Mono.Cecil.dll",
-        "NGCoreStandalone.dll",
-        "NGCoreStandaloneEditor.dll"
+        "NGCoreStandalone_For_NGUnityVersioner.dll",
+        "NGCoreStandalone_For_NGUnityVersionerEditor.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

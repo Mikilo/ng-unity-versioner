@@ -13,9 +13,9 @@ namespace NGUnityVersioner
 		{
 			get
 			{
-				if (string.IsNullOrEmpty(this.Namespace) == true)
-					return this.Name;
-				return this.Namespace + "." + this.Name;
+				if (string.IsNullOrEmpty(this.@namespace) == true)
+					return this.name;
+				return this.@namespace + "." + this.name;
 			}
 		}
 
@@ -49,12 +49,14 @@ namespace NGUnityVersioner
 		private MethodMeta[]	methods;
 		public MethodMeta[]		Methods { get { return this.methods; } }
 
-		public	TypeMeta(IStringTable stringTable, BinaryReader reader)
+		public	TypeMeta(ISharedTable stringTable, BinaryReader reader)
 		{
-			this.@namespace = stringTable.FetchString(reader.ReadInt24());
-			this.name = reader.ReadString();
+			byte[]	rawData = reader.ReadBytes(7);
 
-			byte	flags = reader.ReadByte();
+			this.@namespace = stringTable.FetchString(rawData[0] | (rawData[1] << 8) | (rawData[2] << 16));
+			this.name = stringTable.FetchString(rawData[3] | (rawData[4] << 8) | (rawData[5] << 16));
+
+			byte	flags = rawData[6];
 
 			this.isPublic = (flags & 1) != 0;
 			if ((flags & 4) != 0)
@@ -66,7 +68,7 @@ namespace NGUnityVersioner
 				this.events = new EventMeta[reader.ReadByte()];
 
 			for (int i = 0, max = this.events.Length; i < max; ++i)
-				this.events[i] = new EventMeta(stringTable, this, reader);
+				this.events[i] = stringTable.FetchEvent(reader.ReadInt24());
 
 			if ((flags & 16) != 0)
 				this.fields = new FieldMeta[reader.ReadUInt16()];
@@ -74,7 +76,7 @@ namespace NGUnityVersioner
 				this.fields = new FieldMeta[reader.ReadByte()];
 
 			for (int i = 0, max = this.fields.Length; i < max; ++i)
-				this.fields[i] = new FieldMeta(stringTable, this, reader);
+					this.fields[i] = stringTable.FetchField(reader.ReadInt24());
 
 			if ((flags & 32) != 0)
 				this.properties = new PropertyMeta[reader.ReadUInt16()];
@@ -82,7 +84,7 @@ namespace NGUnityVersioner
 				this.properties = new PropertyMeta[reader.ReadByte()];
 
 			for (int i = 0, max = this.properties.Length; i < max; ++i)
-				this.properties[i] = new PropertyMeta(stringTable, this, reader);
+				this.properties[i] = stringTable.FetchProperty(reader.ReadInt24());
 
 			if ((flags & 64) != 0)
 				this.methods = new MethodMeta[reader.ReadUInt16()];
@@ -90,7 +92,7 @@ namespace NGUnityVersioner
 				this.methods = new MethodMeta[reader.ReadByte()];
 
 			for (int i = 0, max = this.methods.Length; i < max; ++i)
-				this.methods[i] = new MethodMeta(stringTable, this, reader);
+				this.methods[i] = stringTable.FetchMethod(reader.ReadInt24());
 		}
 
 		public	TypeMeta(TypeDefinition typeDef)
@@ -180,11 +182,13 @@ namespace NGUnityVersioner
 
 		public FieldMeta	Resolve(FieldReference fieldRef)
 		{
+			string	fieldRefName = fieldRef.Name;
+
 			for (int i = 0, max = this.fields.Length; i < max; ++i)
 			{
 				FieldMeta	field = this.fields[i];
 
-				if (field.Name == fieldRef.Name)
+				if (field.Name == fieldRefName)
 					return field;
 			}
 
@@ -193,11 +197,13 @@ namespace NGUnityVersioner
 
 		public PropertyMeta	Resolve(PropertyReference propertyRef)
 		{
+			string	propertyRefName = propertyRef.Name;
+
 			for (int i = 0, max = this.properties.Length; i < max; ++i)
 			{
 				PropertyMeta	property = this.properties[i];
 
-				if (property.Name == propertyRef.Name)
+				if (property.Name == propertyRefName)
 					return property;
 			}
 
@@ -206,6 +212,7 @@ namespace NGUnityVersioner
 
 		public MethodMeta	Resolve(MethodReference methodRef)
 		{
+			string	methodName = methodRef.Name;
 			int		targetParametersCount = methodRef.Parameters.Count;
 			bool	hasAMatchingMethod = false;
 
@@ -213,35 +220,27 @@ namespace NGUnityVersioner
 			{
 				MethodMeta	method = this.methods[i];
 
-				if (method.Name == methodRef.Name)
+				if (method.Name == methodName)
 				{
 					hasAMatchingMethod = true;
 
-					int	parametersCount = method.ParametersType.Length;
-
-					if (methodRef.HasParameters == false)
-					{
-						if (parametersCount == 0)
-							return method;
-					}
-					else if (targetParametersCount == parametersCount)
+					if (targetParametersCount == method.ParametersType.Length)
 					{
 						int	j = 0;
 
 						for (; j < targetParametersCount; ++j)
 						{
-							if (methodRef.Parameters[j].ParameterType.IsGenericParameter == true ||
-								methodRef.Parameters[j].ParameterType.ContainsGenericParameter == true)
+							TypeReference	paramType = methodRef.Parameters[j].ParameterType;
+							string			targetParameterType = method.ParametersType[j];
+
+							if (paramType.IsGenericParameter == true ||
+								paramType.ContainsGenericParameter == true)
 							{
-								// TODO Temporary until I find a fix.
-								if (methodRef.Parameters[j].ParameterType.FullName.Replace("!!0", "T").Replace("!0", "T") != method.ParametersType[j])
+								if (paramType.FullName.Replace("!!0", "T").Replace("!0", "T") != method.ParametersType[j])
 									break;
 							}
-							else
-							{
-								if (methodRef.Parameters[j].ParameterType.FullName != method.ParametersType[j])
-									break;
-							}
+							else if (paramType.FullName != targetParameterType)
+								break;
 						}
 
 						if (j == targetParametersCount)
@@ -267,23 +266,27 @@ namespace NGUnityVersioner
 			return null;
 		}
 
-		public void	Save(IStringTable stringTable, BinaryWriter writer)
+		public void	Save(ISharedTable stringTable, BinaryWriter writer)
 		{
 			bool	manyEvents = this.events.Length > 256;
 			bool	manyFields = this.fields.Length > 256;
 			bool	manyProperties = this.properties.Length > 256;
 			bool	manyMethods = this.methods.Length > 256;
 
-			writer.WriteInt24(stringTable.RegisterString(this.Namespace));
-			writer.Write(this.Name);
-			writer.Write((Byte)((this.IsPublic ? 1 : 0) |
-								(this.ErrorMessage != null ? 4 : 0) |
-								(manyEvents == true ? 8 : 0) |
-								(manyFields == true ? 16 : 0) |
-								(manyProperties == true ? 32 : 0) |
-								(manyMethods == true ? 64 : 0)));
+			writer.WriteInt24(stringTable.RegisterString(this.@namespace));
+			writer.WriteInt24(stringTable.RegisterString(this.name));
+
+			byte	b = (Byte)((this.IsPublic ? 1 : 0) |
+							   (this.ErrorMessage != null ? 4 : 0) |
+							   (manyEvents == true ? 8 : 0) |
+							   (manyFields == true ? 16 : 0) |
+							   (manyProperties == true ? 32 : 0) |
+							   (manyMethods == true ? 64 : 0));
+
+			writer.Write(b);
+
 			if (this.ErrorMessage != null)
-				writer.WriteInt24(stringTable.RegisterString(this.ErrorMessage));
+				writer.WriteInt24(stringTable.RegisterString(this.errorMessage));
 
 			if (manyEvents == true)
 				writer.Write((UInt16)this.events.Length);
@@ -291,7 +294,7 @@ namespace NGUnityVersioner
 				writer.Write((Byte)this.events.Length);
 
 			for (int i = 0, max = this.events.Length; i < max; ++i)
-				this.events[i].Save(stringTable, writer);
+				writer.WriteInt24(stringTable.RegisterEvent(this.events[i]));
 
 			if (manyFields == true)
 				writer.Write((UInt16)this.fields.Length);
@@ -299,7 +302,7 @@ namespace NGUnityVersioner
 				writer.Write((Byte)this.fields.Length);
 
 			for (int i = 0, max = this.fields.Length; i < max; ++i)
-				this.fields[i].Save(stringTable, writer);
+				writer.WriteInt24(stringTable.RegisterField(this.fields[i]));
 
 			if (manyProperties == true)
 				writer.Write((UInt16)this.properties.Length);
@@ -307,7 +310,7 @@ namespace NGUnityVersioner
 				writer.Write((Byte)this.properties.Length);
 
 			for (int i = 0, max = this.properties.Length; i < max; ++i)
-				this.properties[i].Save(stringTable, writer);
+				writer.WriteInt24(stringTable.RegisterProperty(this.properties[i]));
 
 			if (manyMethods == true)
 				writer.Write((UInt16)this.methods.Length);
@@ -315,7 +318,62 @@ namespace NGUnityVersioner
 				writer.Write((Byte)this.methods.Length);
 
 			for (int i = 0, max = this.methods.Length; i < max; ++i)
-				this.methods[i].Save(stringTable, writer);
+				writer.WriteInt24(stringTable.RegisterMethod(this.methods[i]));
+		}
+
+		public int	GetSignatureHash()
+		{
+			StringBuilder	buffer = Utility.GetBuffer();
+
+			buffer.Append(this.@namespace);
+			buffer.Append(this.name);
+			buffer.Append(this.errorMessage);
+			buffer.Append(this.isPublic);
+
+			for (int i = 0, max = this.events.Length; i < max; ++i)
+			{
+				buffer.Append(this.events[i].Name);
+				buffer.Append(this.events[i].ErrorMessage);
+				buffer.Append(this.events[i].DeclaringType);
+				buffer.Append(this.events[i].Type);
+				buffer.Append(this.events[i].HasAdd);
+				buffer.Append(this.events[i].HasRemove);
+			}
+
+			for (int i = 0, max = this.fields.Length; i < max; ++i)
+			{
+				buffer.Append(this.fields[i].Name);
+				buffer.Append(this.fields[i].ErrorMessage);
+				buffer.Append(this.fields[i].DeclaringType);
+				buffer.Append(this.fields[i].Type);
+			}
+
+			for (int i = 0, max = this.properties.Length; i < max; ++i)
+			{
+				buffer.Append(this.properties[i].Name);
+				buffer.Append(this.properties[i].ErrorMessage);
+				buffer.Append(this.properties[i].DeclaringType);
+				buffer.Append(this.properties[i].Type);
+				buffer.Append(this.properties[i].HasGetter);
+				buffer.Append(this.properties[i].HasSetter);
+			}
+
+			for (int i = 0, max = this.methods.Length; i < max; ++i)
+			{
+				buffer.Append(this.methods[i].Name);
+				buffer.Append(this.methods[i].ErrorMessage);
+				buffer.Append(this.methods[i].IsPublic);
+				buffer.Append(this.methods[i].DeclaringType);
+				buffer.Append(this.methods[i].ReturnType);
+
+				for (int j = 0, max2 = this.methods[i].ParametersType.Length; j < max2; ++j)
+				{
+					buffer.Append(this.methods[i].ParametersType[j]);
+					buffer.Append(this.methods[i].ParametersName[j]);
+				}
+			}
+
+			return Utility.ReturnBuffer(buffer).GetHashCode();
 		}
 
 		public override string	ToString()

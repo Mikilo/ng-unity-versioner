@@ -1,4 +1,5 @@
 ﻿using Mono.Cecil;
+using NGToolsStandalone_For_NGUnityVersioner;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,59 +21,25 @@ namespace NGUnityVersioner
 
 		public void	ResolveReferences(ICollection<TypeReference> types, ICollection<FieldReference> fields, ICollection<MethodReference> methods)
 		{
-			//Debug.Log();
-			//Debug.Log("Types (" + allAssemblies[0].Types.Length + ")");
-
-			//for (int i = 0, max = am.Types.Length; i < max; ++i)
-			//{
-			//	TypeMeta	type = am.Types[i];
-
-			//	Debug.Log(type);
-			//	for (int j = 0, max2 = type.events.Length; j < max2; ++j)
-			//	{
-			//		EventMeta	@event = type.events[j];
-
-			//		Debug.Log("  E " + @event);
-			//	}
-			//	for (int j = 0, max2 = type.fields.Length; j < max2; ++j)
-			//	{
-			//		FieldMeta	field = type.fields[j];
-
-			//		Debug.Log("  F " + field);
-			//	}
-			//	for (int j = 0, max2 = type.properties.Length; j < max2; ++j)
-			//	{
-			//		PropertyMeta	property = type.properties[j];
-
-			//		Debug.Log("  P " + property);
-			//	}
-			//	for (int j = 0, max2 = type.methods.Length; j < max2; ++j)
-			//	{
-			//		MethodMeta	method = type.methods[j];
-
-			//		Debug.Log("  M " + method);
-			//	}
-			//}
-
-			int	assembliesMetaLength = this.unityMeta.AssembliesMeta.Length;
+			int									assembliesMetaLength = this.unityMeta.AssembliesMeta.Length;
+			DynamicOrderedArray<AssemblyMeta>	assemblies = new DynamicOrderedArray<AssemblyMeta>(this.unityMeta.AssembliesMeta);
 
 			foreach (TypeReference typeRef in types)
 			{
-				int	j = 0;
+				TypeMeta	meta = null;
+				int			j = 0;
 
-				for (; j < assembliesMetaLength; ++j)
+				for (; j < assembliesMetaLength && meta == null; ++j)
+					meta = assemblies.array[j].Resolve(typeRef);
+
+				if (meta != null)
 				{
-					TypeMeta	meta = this.unityMeta.AssembliesMeta[j].Resolve(typeRef);
+					assemblies.BringToTop(j - 1);
 
-					if (meta != null)
-					{
-						if (meta.ErrorMessage != null)
-							this.foundTypes.Add(meta);
-						break;
-					}
+					if (meta.ErrorMessage != null)
+						this.foundTypes.Add(meta);
 				}
-
-				if (j == assembliesMetaLength)
+				else
 				{
 					// Type not found, maybe look into other types. Might be renamed.
 					TypeMeta	lastFound = null;
@@ -81,16 +48,19 @@ namespace NGUnityVersioner
 
 					j = 0;
 
-					for (; j < assembliesMetaLength; ++j)
+					for (; j < assembliesMetaLength && lastFound == null; ++j)
 					{
-						for (int k = 0, max = this.unityMeta.AssembliesMeta[j].Types.Length; k < max; ++k)
+						for (int k = 0, max = assemblies.array[j].Types.Length; k < max; ++k)
 						{
-							TypeMeta	typeMeta = this.unityMeta.AssembliesMeta[j].Types[k];
+							TypeMeta	typeMeta = assemblies.array[j].Types[k];
 
 							if (typeMeta.Name == typeRefName)
 							{
 								if (lastFound == null || this.GetLevenshteinDistance(lastFound.Namespace, typeRefNamespace) > this.GetLevenshteinDistance(typeMeta.Namespace, typeRefNamespace))
+								{
 									lastFound = typeMeta;
+									break;
+								}
 							}
 						}
 					}
@@ -104,41 +74,39 @@ namespace NGUnityVersioner
 
 			foreach (FieldReference fieldRef in fields)
 			{
-				int	j = 0;
+				FieldMeta	meta = null;
+				int			j = 0;
 
-				for (; j < assembliesMetaLength; ++j)
+				for (; j < assembliesMetaLength && meta == null; ++j)
+					meta = assemblies.array[j].Resolve(fieldRef);
+
+				if (meta != null)
 				{
-					FieldMeta	meta = this.unityMeta.AssembliesMeta[j].Resolve(fieldRef);
+					assemblies.BringToTop(j - 1);
 
-					if (meta != null)
-					{
-						if (meta.ErrorMessage != null)
-							this.foundFields.Add(meta);
-						break;
-					}
+					if (meta.ErrorMessage != null)
+						this.foundFields.Add(meta);
 				}
-
-				if (j == assembliesMetaLength)
+				else
 					this.missingFields.Add(new FieldMeta(fieldRef));
 			}
 
 			foreach (MethodReference methodRef in methods)
 			{
-				int	j = 0;
+				MethodMeta	meta = null;
+				int			j = 0;
 
-				for (; j < assembliesMetaLength; ++j)
+				for (; j < assembliesMetaLength && meta == null; ++j)
+					meta = assemblies.array[j].Resolve(methodRef);
+
+				if (meta != null)
 				{
-					MethodMeta	meta = this.unityMeta.AssembliesMeta[j].Resolve(methodRef);
+					assemblies.BringToTop(j - 1);
 
-					if (meta != null)
-					{
-						if (meta.ErrorMessage != null)
-							this.foundMethods.Add(meta);
-						break;
-					}
+					if (meta.ErrorMessage != null)
+						this.foundMethods.Add(meta);
 				}
-
-				if (j == assembliesMetaLength)
+				else
 					this.missingMethods.Add(new MethodMeta(methodRef));
 			}
 		}

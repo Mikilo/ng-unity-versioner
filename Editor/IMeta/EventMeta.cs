@@ -1,6 +1,7 @@
 ﻿using Mono.Cecil;
 using System;
 using System.IO;
+using System.Text;
 using UnityEngine;
 
 namespace NGUnityVersioner
@@ -29,17 +30,19 @@ namespace NGUnityVersioner
 		private bool	hasRemove;
 		public bool		HasRemove { get { return this.hasRemove; } }
 
-		public	EventMeta(IStringTable stringTable, TypeMeta declaringType, BinaryReader reader)
+		public	EventMeta(ISharedTable stringTable, TypeMeta declaringType, BinaryReader reader)
 		{
-			this.name = stringTable.FetchString(reader.ReadInt24());
+			byte[]	rawData = reader.ReadBytes(10);
 
-			this.declaringType = declaringType.FullName;
-			this.type = stringTable.FetchString(reader.ReadInt24());
+			this.name = stringTable.FetchString(rawData[0] | (rawData[1] << 8) | (rawData[2] << 16));
+			this.declaringType = stringTable.FetchString(rawData[3] | (rawData[4] << 8) | (rawData[5] << 16));
+			this.type = stringTable.FetchString(rawData[6] | (rawData[7] << 8) | (rawData[8] << 16));
 
-			byte	flags = reader.ReadByte();
+			byte	flags = rawData[9];
 
 			this.hasAdd = (flags & 1) != 0;
 			this.hasRemove = (flags & 2) != 0;
+
 			if ((flags & 4) != 0)
 				this.errorMessage = stringTable.FetchString(reader.ReadInt24());
 		}
@@ -56,18 +59,33 @@ namespace NGUnityVersioner
 			this.hasRemove = @event.RemoveMethod != null;
 		}
 
-		public void	Save(IStringTable stringTable, BinaryWriter writer)
+		public void	Save(ISharedTable stringTable, BinaryWriter writer)
 		{
-			writer.WriteInt24(stringTable.RegisterString(this.Name));
-			writer.WriteInt24(stringTable.RegisterString(this.Type));
-			writer.Write((Byte)((this.HasAdd ? 1 : 0) | (this.HasRemove ? 2 : 0) | (this.ErrorMessage != null ? 4 : 0)));
-			if (this.ErrorMessage != null)
-				writer.WriteInt24(stringTable.RegisterString(this.ErrorMessage));
+			writer.WriteInt24(stringTable.RegisterString(this.name));
+			writer.WriteInt24(stringTable.RegisterString(this.declaringType));
+			writer.WriteInt24(stringTable.RegisterString(this.type));
+			writer.Write((Byte)((this.hasAdd ? 1 : 0) | (this.hasRemove ? 2 : 0) | (this.errorMessage != null ? 4 : 0)));
+			if (this.errorMessage != null)
+				writer.WriteInt24(stringTable.RegisterString(this.errorMessage));
+		}
+
+		public int	GetSignatureHash()
+		{
+			StringBuilder	buffer = Utility.GetBuffer();
+
+			buffer.Append(this.name);
+			buffer.Append(this.errorMessage);
+			buffer.Append(this.declaringType);
+			buffer.Append(this.type);
+			buffer.Append(this.hasAdd);
+			buffer.Append(this.hasRemove);
+
+			return Utility.ReturnBuffer(buffer).GetHashCode();
 		}
 
 		public override string	ToString()
 		{
-			return this.Type + " " + this.DeclaringType + "::" + this.Name + " (" + (this.HasAdd ? "add;" : string.Empty) + (this.HasRemove ? "remove;" : string.Empty) + ")";
+			return this.type + " " + this.declaringType + "::" + this.name + " (" + (this.hasAdd ? "add;" : string.Empty) + (this.hasRemove ? "remove;" : string.Empty) + ")";
 		}
 
 		// Hack to bypass null-to-empty string serialization.

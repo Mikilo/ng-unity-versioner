@@ -32,26 +32,29 @@ namespace NGUnityVersioner
 		private string[]	parametersName;
 		public string[]		ParametersName { get { return this.parametersName; } }
 
-		public	MethodMeta(IStringTable stringTable, TypeMeta declaringType, BinaryReader reader)
+		public	MethodMeta(ISharedTable stringTable, TypeMeta declaringType, BinaryReader reader)
 		{
-			this.name = stringTable.FetchString(reader.ReadInt24());
+			byte[]	rawData = reader.ReadBytes(12);
 
-			this.declaringType = declaringType.FullName;
-			this.returnType = stringTable.FetchString(reader.ReadInt24());
+			this.name = stringTable.FetchString(rawData[0] | (rawData[1] << 8) | (rawData[2] << 16));
+			this.declaringType = stringTable.FetchString(rawData[3] | (rawData[4] << 8) | (rawData[5] << 16));
+			this.returnType = stringTable.FetchString(rawData[6] | (rawData[7] << 8) | (rawData[8] << 16));
 
-			byte	flags = reader.ReadByte();
+			byte	flags = rawData[9];
 
 			this.isPublic = (flags & 1) != 0;
 
-			int	length = reader.ReadUInt16();
+			int	length = rawData[10] | (rawData[11] << 8);
 
 			this.parametersType = new string[length];
 			this.parametersName = new string[length];
 
-			for (int i = 0, max = length; i < max; ++i)
+			rawData = reader.ReadBytes(length * 6);
+
+			for (int i = 0, j = 0; j < length; ++j, i += 6)
 			{
-				this.parametersType[i] = stringTable.FetchString(reader.ReadInt24());
-				this.parametersName[i] = stringTable.FetchString(reader.ReadInt24());
+				this.parametersType[j] = stringTable.FetchString(rawData[i] | (rawData[i + 1] << 8) | (rawData[i + 2] << 16));
+				this.parametersName[j] = stringTable.FetchString(rawData[i + 3] | (rawData[i + 4] << 8) | (rawData[i + 5] << 16));
 			}
 
 			if ((flags & 4) != 0)
@@ -115,37 +118,58 @@ namespace NGUnityVersioner
 			}
 		}
 
-		public void	Save(IStringTable stringTable, BinaryWriter writer)
+		public void	Save(ISharedTable stringTable, BinaryWriter writer)
 		{
-			writer.WriteInt24(stringTable.RegisterString(this.Name));
-			writer.WriteInt24(stringTable.RegisterString(this.ReturnType));
-			writer.Write((Byte)((this.IsPublic ? 1 : 0) | (this.ErrorMessage != null ? 4 : 0)));
-			writer.Write((UInt16)this.ParametersType.Length);
+			writer.WriteInt24(stringTable.RegisterString(this.name));
+			writer.WriteInt24(stringTable.RegisterString(this.declaringType));
+			writer.WriteInt24(stringTable.RegisterString(this.returnType));
+			writer.Write((Byte)((this.isPublic ? 1 : 0) | (this.errorMessage != null ? 4 : 0)));
+			writer.Write((UInt16)this.parametersType.Length);
 
-			for (int i = 0, max = this.ParametersType.Length; i < max; ++i)
+			for (int i = 0, max = this.parametersType.Length; i < max; ++i)
 			{
-				writer.WriteInt24(stringTable.RegisterString(this.ParametersType[i]));
-				writer.WriteInt24(stringTable.RegisterString(this.ParametersName[i]));
+				writer.WriteInt24(stringTable.RegisterString(this.parametersType[i]));
+				writer.WriteInt24(stringTable.RegisterString(this.parametersName[i]));
 			}
 
-			if (this.ErrorMessage != null)
-				writer.WriteInt24(stringTable.RegisterString(this.ErrorMessage));
+			if (this.errorMessage != null)
+				writer.WriteInt24(stringTable.RegisterString(this.errorMessage));
+		}
+
+		public int	GetSignatureHash()
+		{
+			StringBuilder	buffer = Utility.GetBuffer();
+
+			buffer.Append(this.name);
+			buffer.Append(this.errorMessage);
+			buffer.Append(this.isPublic);
+			buffer.Append(this.declaringType);
+			buffer.Append(this.returnType);
+
+			for (int i = 0, max = this.parametersType.Length; i < max; ++i)
+			{
+				buffer.Append(this.parametersType[i]);
+				buffer.Append(this.parametersName[i]);
+			}
+
+			return Utility.ReturnBuffer(buffer).GetHashCode();
 		}
 
 		public override string	ToString()
 		{
-			StringBuilder	buffer = new StringBuilder(this.ReturnType);
+			StringBuilder	buffer = new StringBuilder(this.returnType);
 
 			buffer.Append(' ');
-			buffer.Append(this.DeclaringType);
+			buffer.Append(this.declaringType);
 			buffer.Append("::");
-			buffer.Append(this.Name);
+			buffer.Append(this.name);
 			buffer.Append('(');
-			for (int i = 0, max = this.ParametersType.Length; i < max; ++i)
+
+			for (int i = 0, max = this.parametersType.Length; i < max; ++i)
 			{
 				if (i > 0)
 					buffer.Append(',');
-				buffer.Append(this.ParametersType[i]);
+				buffer.Append(this.parametersType[i]);
 			}
 			buffer.Append(')');
 

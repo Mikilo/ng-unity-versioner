@@ -2,11 +2,11 @@
 
 namespace NGUnityVersioner
 {
-	public interface IMeta
+	public interface IMeta : IMetaSignature
 	{
 		string	Name { get; }
 		string	ErrorMessage { get; }
 
-		void	Save(IStringTable stringTable, BinaryWriter writer);
+		void	Save(ISharedTable stringTable, BinaryWriter writer);
 	}
 }
