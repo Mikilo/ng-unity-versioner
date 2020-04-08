@@ -53,4 +53,8 @@ If you would like to check against a Unity version not available but installed l
 }
 ```
 
-Any feedback is welcome! 
+# Requirements:
+Unity 2017 LTS minimum
+Framework .NET 4
+
+Any feedback is welcome!
