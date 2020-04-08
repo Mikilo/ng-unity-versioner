@@ -54,7 +54,7 @@ If you would like to check against a Unity version not available but installed l
 ```
 
 # Requirements:
-Unity 2017 LTS minimum
-Framework .NET 4
+- Unity 2017 LTS minimum
+- Framework .NET 4
 
 Any feedback is welcome!
