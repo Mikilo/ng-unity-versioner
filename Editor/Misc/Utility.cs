@@ -18,23 +18,59 @@ namespace NGUnityVersioner
 			return Utility.CompareVersion(a.unityMeta.Version, b.unityMeta.Version);
 		}
 
+		private static readonly char[]	Extensions = new char[] { 'a', 'b', 'f', 'r', 'p', 'x' };
+
+		private static char	GetVersionExtension(string version)
+		{
+			for (int i = 0, max = Utility.Extensions.Length; i < max; ++i)
+			{
+				int	n = version.IndexOf(Utility.Extensions[i]);
+
+				if (n != -1)
+					return version[n];
+			}
+
+			return (char)0;
+		}
+
 		public static int	CompareVersion(string a, string b)
 		{
 			string[]	aParts = a.Split('.', 'a', 'b', 'f', 'r', 'p', 'x');
 			string[]	bParts = b.Split('.', 'a', 'b', 'f', 'r', 'p', 'x');
-
-			if (aParts.Length != bParts.Length)
-				return bParts.Length - aParts.Length;
+			int			max = aParts.Length > bParts.Length ? bParts.Length : aParts.Length;
 
 			try
 			{
-				for (int i = 0, max = aParts.Length; i < max; ++i)
+				if (max != 4)
 				{
-					int	aNum = Utility.ParseInt(aParts[i]);
-					int	bNum = Utility.ParseInt(bParts[i]);
+					for (int i = 0; i < max; ++i)
+					{
+						int	aNum = Utility.ParseInt(aParts[i]);
+						int	bNum = Utility.ParseInt(bParts[i]);
 
-					if (aNum != bNum)
-						return bNum - aNum;
+						if (aNum != bNum)
+							return bNum - aNum;
+					}
+				}
+				else
+				{
+					char	aExt = Utility.GetVersionExtension(a);
+					char	bExt = Utility.GetVersionExtension(b);
+
+					// Default Major.Minor.Patch{Ext}Iteration
+					for (int i = 0; i < 3; ++i)
+					{
+						int	aNum = Utility.ParseInt(aParts[i]);
+						int	bNum = Utility.ParseInt(bParts[i]);
+
+						if (aNum != bNum)
+							return bNum - aNum;
+					}
+
+					if (aExt != bExt)
+						return bExt - aExt;
+
+					return Utility.ParseInt(bParts[3]) - Utility.ParseInt(aParts[3]);
 				}
 			}
 			catch (Exception)

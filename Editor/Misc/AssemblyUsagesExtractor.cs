@@ -1,8 +1,8 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
+using NGToolsStandalone_For_NGUnityVersionerEditor;
 using System;
-using System.Linq;
 using UnityEngine;
 
 namespace NGUnityVersioner
@@ -65,11 +65,34 @@ namespace NGUnityVersioner
 
 					foreach (TypeDefinition typeDef in moduleDef.Types)
 					{
-						if (filterNamespacesLength == 0 || result.FilterNamespaces.FirstOrDefault(ns => typeDef.Namespace.StartsWith(ns)) != null)
+						if (filterNamespacesLength == 0 || AssemblyUsagesExtractor.IsFilteredIn(result.FilterNamespaces, typeDef.Namespace) == true)
 							AssemblyUsagesExtractor.InspectType(result, typeDef);
 					}
 				}
 			}
+		}
+
+		private static bool	IsFilteredIn(FilterText[] filters, string @namespace)
+		{
+			bool	isIn = false;
+
+			for (int i = 0, max = filters.Length; i < max; ++i)
+			{
+				FilterText	filter = filters[i];
+
+				if (filter.type == Filter.Type.Inclusive)
+				{
+					if (isIn == false && @namespace.StartsWith(filter.text) == true)
+						isIn = true;
+				}
+				else
+				{
+					if (@namespace.StartsWith(filter.text) == true)
+						return false;
+				}
+			}
+
+			return isIn;
 		}
 
 		public static void	InspectType(AssemblyUsages result, TypeDefinition typeDef)
@@ -296,11 +319,10 @@ namespace NGUnityVersioner
 
 				if (parameter.HasConstraints)
 				{
-					foreach (GenericParameterConstraint constraint in parameter.Constraints)
+					foreach (TypeReference constraint in parameter.Constraints)
 					{
 						if (AssemblyUsagesExtractor.debug > 1) AssemblyUsagesExtractor.Log("Constraint {0}", constraint);
-						result.RegisterTypeRef(constraint.ConstraintType);
-						AssemblyUsagesExtractor.InspectAttributes(result, constraint);
+						result.RegisterTypeRef(constraint);
 					}
 				}
 			}

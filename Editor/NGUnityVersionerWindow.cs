@@ -25,6 +25,10 @@ namespace NGUnityVersioner
 		public const float	ResetTargetAssembliesWidth = 100F;
 		public const float	TypeLabelWidth = 120F;
 		public const int	MaxSimilarTypesDisplayed = 50;
+		public const float	ToggleFilterWidth = 18F;
+		public const float	FilterTypeWidth = 100F;
+		public const float	DeleteButtonWidth = 20F;
+		public static Color	ActiveFilterOutline { get { return Utility.GetSkinColor(0F, 1F, 1F, 1F, 1F, 1F, 0F, 1F); } }
 
 		public static readonly CategoryTips[]	Tips = new CategoryTips[]
 		{
@@ -44,15 +48,17 @@ namespace NGUnityVersioner
 		public Tab	tab = Tab.NamespaceSearch;
 
 		#region Namespace
-		public List<string> targetAssemblies = new List<string>() { @"Library\ScriptAssemblies" };
-		public List<string>	filterNamespaces = new List<string>();
-		public List<string>	targetNamespaces = new List<string>() { "UnityEngine", "UnityEditor" };
-		public string		databasePath = "Packages/com.mikilo.ng-unity-versioner/Versions/" + DatabaseMeta.DatabaseFilename;
+		public List<string>		targetAssemblies = new List<string>() { @"Library\ScriptAssemblies" };
+		public List<FilterText>	filterNamespaces = new List<FilterText>();
 		[NonSerialized]
-		private string		databasePathOrigin;
-		public List<string>	activeUnityVersions = new List<string>();
-		public bool			useMultithreading;
-		public bool			displayWarnings = true;
+		private string			cachedFiltersFolderLabel;
+		public List<string>		targetNamespaces = new List<string>() { "UnityEngine", "UnityEditor" };
+		public string			databasePath = "Packages/com.mikilo.ng-unity-versioner/Versions/" + DatabaseMeta.DatabaseFilename;
+		[NonSerialized]
+		private string			databasePathOrigin;
+		public List<string>		activeUnityVersions = new List<string>();
+		public bool				useMultithreading;
+		public bool				displayWarnings = true;
 
 		private ReorderableList	listAssemblies;
 		private ReorderableList	listFilterNamespaces;
@@ -84,6 +90,8 @@ namespace NGUnityVersioner
 
 		[NonSerialized]
 		private bool	tabNavigating;
+		[NonSerialized]
+		private bool	controlReleased = true;
 
 		private ErrorPopup	errorPopup = new ErrorPopup(NGUnityVersionerWindow.Title, "An error occurred, try to reopen " + NGUnityVersionerWindow.Title + ". If it persists contact the author.");
 
@@ -101,9 +109,9 @@ namespace NGUnityVersioner
 
 		protected virtual void	OnEnable()
 		{
-			Utility.RestoreIcon(this);
-
 			Utility.LoadEditorPref(this, NGEditorPrefs.GetPerProjectPrefix());
+
+			Utility.RestoreIcon(this);
 
 			this.listAssemblies = new ReorderableList(this.targetAssemblies, typeof(string));
 			this.listAssemblies.drawHeaderCallback = (r) =>
@@ -122,11 +130,11 @@ namespace NGUnityVersioner
 			this.listAssemblies.onAddCallback = (r) => this.targetAssemblies.Add(string.Empty);
 			this.listAssemblies.onChangedCallback = (r) => this.detectedAssemblies = null;
 
-			this.listFilterNamespaces = new ReorderableList(this.filterNamespaces, typeof(string));
-			this.listFilterNamespaces.drawHeaderCallback = (r) => GUI.Label(r, "Filter Namespaces (Extract usages from namespaces beginning with)");
+			this.listFilterNamespaces = new ReorderableList(this.filterNamespaces, typeof(FilterText));
+			this.listFilterNamespaces.drawHeaderCallback = this.OnDrawHeaderFilters;
 			this.listFilterNamespaces.elementHeight = 18F;
-			this.listFilterNamespaces.drawElementCallback = (r, i, a, b) => { r.height = Constants.SingleLineHeight; this.filterNamespaces[i] = EditorGUI.TextField(r, this.filterNamespaces[i]); };
-			this.listFilterNamespaces.onAddCallback = (r) => this.filterNamespaces.Add(string.Empty);
+			this.listFilterNamespaces.drawElementCallback = this.OnDrawFilter;
+			this.listFilterNamespaces.onAddCallback = (r) => this.filterNamespaces.Add(new FilterText());
 
 			this.listTargetNamespaces = new ReorderableList(this.targetNamespaces, typeof(string));
 			this.listTargetNamespaces.drawHeaderCallback = (r) => GUI.Label(r, "Target Namespaces (beginning with)");
@@ -167,7 +175,7 @@ namespace NGUnityVersioner
 					if (this.tabNavigating == true)
 					{
 						Rect	r = GUILayoutUtility.GetLastRect();
-						r.width = 10F;
+						r.width = 14F;
 						GUI.Label(r, "1", GUI.skin.textField);
 					}
 
@@ -179,7 +187,7 @@ namespace NGUnityVersioner
 					if (this.tabNavigating == true)
 					{
 						Rect	r = GUILayoutUtility.GetLastRect();
-						r.width = 10F;
+						r.width = 14F;
 						GUI.Label(r, "2", GUI.skin.textField);
 					}
 				}
@@ -191,18 +199,33 @@ namespace NGUnityVersioner
 				else
 					this.OnGUITypeSearch();
 			}
+			catch (ExitGUIException)
+			{
+			}
 			catch (Exception ex)
 			{
 				this.errorPopup.error = ex;
 			}
 
-			if (currentEvent.type == EventType.KeyDown)
+			if (currentEvent.type == EventType.KeyUp)
 			{
 				if (currentEvent.keyCode == KeyCode.LeftControl ||
 					currentEvent.keyCode == KeyCode.RightControl)
 				{
-					this.tabNavigating = !this.tabNavigating;
-					this.Repaint();
+					this.controlReleased = true;
+				}
+			}
+			else if (currentEvent.type == EventType.KeyDown)
+			{
+				if (currentEvent.keyCode == KeyCode.LeftControl ||
+					currentEvent.keyCode == KeyCode.RightControl)
+				{
+					if (this.controlReleased == true)
+					{
+						this.controlReleased = false;
+						this.tabNavigating = !this.tabNavigating;
+						this.Repaint();
+					}
 				}
 				else if (this.tabNavigating == true)
 				{
@@ -313,9 +336,9 @@ namespace NGUnityVersioner
 					{
 						GenericMenu	menu = new GenericMenu();
 
-						menu.AddItem(new GUIContent("Select above current version (" + Application.unityVersion + ")"), false, this.SelectAboveCurrentVersion);
-						menu.AddItem(new GUIContent("Select highest of each version"), false, this.SelectHighestOfEachVersion);
-						menu.AddItem(new GUIContent("Select lowest of each version"), false, this.SelectLowestOfEachVersion);
+						menu.AddItem(new GUIContent("Select above current version (" + Application.unityVersion + ")"), false, this.SelectAboveCurrentVersion, Event.current.modifiers);
+						menu.AddItem(new GUIContent("Select highest of each version"), false, this.SelectHighestOfEachVersion, Event.current.modifiers);
+						menu.AddItem(new GUIContent("Select lowest of each version"), false, this.SelectLowestOfEachVersion, Event.current.modifiers);
 
 						if (versions.Length > 0)
 						{
@@ -331,8 +354,8 @@ namespace NGUnityVersioner
 
 									string	majorString = major.ToString();
 
-									menu.AddItem(new GUIContent("Select Unity >= " + majorString), false, this.SelectVersionsSuperiorOrEqual, majorString);
-									menu.AddItem(new GUIContent("Select Unity " + majorString), false, this.SelectVersionsEqual, majorString);
+									menu.AddItem(new GUIContent("Select Unity >= " + majorString), false, this.SelectVersionsSuperiorOrEqual, new object[] { Event.current.modifiers, majorString });
+									menu.AddItem(new GUIContent("Select Unity " + majorString), false, this.SelectVersionsEqual, new object[] { Event.current.modifiers, majorString });
 								}
 							}
 						}
@@ -361,7 +384,7 @@ namespace NGUnityVersioner
 					}
 				}
 
-				int lastMajor = 0;
+				int	lastMajor = 0;
 				int	lastMinor = 0;
 
 				for (int i = 0, max = versions.Length; i < max; ++i)
@@ -438,6 +461,112 @@ namespace NGUnityVersioner
 						AssemblyUsages.useMultithreading = this.useMultithreading;
 					XGUIHighlightManager.DrawHighlightLayout(NGUnityVersionerWindow.Title + ".useMultithreading", this, XGUIHighlights.Wave | XGUIHighlights.Glow);
 				}
+			}
+		}
+
+		private void	OnDrawHeaderFilters(Rect r)
+		{
+			if (string.IsNullOrEmpty(this.cachedFiltersFolderLabel) == true)
+			{
+				StringBuilder	buffer = Utility.GetBuffer("Filter Namespaces (");
+				bool			onlyExclusive = true;
+
+				for (int i = 0, j = 0, max = this.filterNamespaces.Count; i < max; i++)
+				{
+					FilterText	filter = this.filterNamespaces[i];
+
+					if (filter.active == true &&
+						string.IsNullOrEmpty(filter.text) == false)
+					{
+						if (j > 0)
+							buffer.Append(' ');
+
+						if (filter.type == Filter.Type.Inclusive)
+						{
+							onlyExclusive = false;
+							buffer.Append("+");
+						}
+						else
+							buffer.Append("-");
+						buffer.Append(filter.text);
+						++j;
+					}
+				}
+
+				if (buffer.Length <= "Filter Namespaces (".Length)
+					buffer.Append("No filtering)");
+				else
+				{
+					if (onlyExclusive == true)
+						buffer.Insert("Filter Namespaces (".Length, "All ");
+
+					buffer.Append(")");
+				}
+
+				this.cachedFiltersFolderLabel = Utility.ReturnBuffer(buffer);
+			}
+
+			GUI.Label(r, this.cachedFiltersFolderLabel);
+		}
+
+		private void	OnDrawFilter(Rect r, int index, bool isActive, bool isFocused)
+		{
+			FilterText	filter = this.filterNamespaces[index];
+			float		width = r.width;
+
+			r.width = NGUnityVersionerWindow.ToggleFilterWidth;
+			EditorGUI.BeginChangeCheck();
+			GUI.Toggle(r, filter.active, string.Empty);
+			if (EditorGUI.EndChangeCheck() == true)
+			{
+				filter.active = !filter.active;
+				this.cachedFiltersFolderLabel = null;
+				GUI.FocusControl(null);
+			}
+			r.x += r.width;
+
+			r.height -= 2F;
+
+			EditorGUI.BeginChangeCheck();
+			r.width = width - NGUnityVersionerWindow.ToggleFilterWidth - 2F - NGUnityVersionerWindow.FilterTypeWidth - NGUnityVersionerWindow.DeleteButtonWidth;
+			string	text = EditorGUI.TextField(r, filter.text);
+			if (EditorGUI.EndChangeCheck() == true)
+			{
+				filter.text = text;
+				this.cachedFiltersFolderLabel = null;
+			}
+
+			if (filter.active == true)
+			{
+				r.x -= 1F;
+				r.y -= 1F;
+				r.width += 2F;
+				r.height += 2F;
+				Utility.DrawUnfillRect(r, NGUnityVersionerWindow.ActiveFilterOutline);
+				r.x += 1F;
+				r.y += 1F;
+				r.width -= 2F;
+				r.height -= 2F;
+			}
+
+			r.x += r.width + 2F;
+
+			EditorGUI.BeginChangeCheck();
+			r.width = NGUnityVersionerWindow.FilterTypeWidth;
+			GUI.Toggle(r, filter.type == Filter.Type.Inclusive, filter.type == Filter.Type.Inclusive ? "Inclusive" : "Exclusive", GeneralStyles.ToolbarToggle);
+			if (EditorGUI.EndChangeCheck() == true)
+			{
+				filter.type = (Filter.Type)(((int)filter.type + 1) & 1);
+				this.cachedFiltersFolderLabel = null;
+			}
+			r.x += r.width;
+
+			r.width = NGUnityVersionerWindow.DeleteButtonWidth;
+			if (GUI.Button(r, "X", GeneralStyles.ToolbarCloseButton) == true)
+			{
+				this.filterNamespaces.RemoveAt(index);
+				this.cachedFiltersFolderLabel = null;
+				EditorGUIUtility.ExitGUI();
 			}
 		}
 
@@ -860,7 +989,17 @@ namespace NGUnityVersioner
 
 			using (WatchTime.Get("Scan code compatibilities completed."))
 			{
-				AssemblyUsagesResult[]	results = AssemblyUsages.CheckCompatibilities(targetAssemblies, this.filterNamespaces.ToArray(), this.targetNamespaces.ToArray(), this.activeUnityVersions);
+				List<FilterText>	activeFilters = new List<FilterText>();
+
+				for (int i = 0, max = this.filterNamespaces.Count; i < max; ++i)
+				{
+					FilterText	filter = this.filterNamespaces[i];
+
+					if (filter.active == true)
+						activeFilters.Add(filter);
+				}
+
+				AssemblyUsagesResult[]	results = AssemblyUsages.CheckCompatibilities(targetAssemblies, activeFilters.ToArray(), this.targetNamespaces.ToArray(), this.activeUnityVersions);
 
 				if (results != null)
 					Utility.OpenWindow<AssemblyUsagesResultWindow>(AssemblyUsagesResultWindow.Title, true, w => w.SetResults(results));
@@ -919,7 +1058,7 @@ namespace NGUnityVersioner
 				}
 			}
 
-			if (string.IsNullOrWhiteSpace(this.typeInput) == false)
+			if (string.IsNullOrEmpty(this.typeInput) == false)
 			{
 				this.typeResult = this.typeDatabase.Scan(this.typeInput.Trim(), this.memberInput.Trim());
 				this.hasResult = true;
@@ -957,11 +1096,14 @@ namespace NGUnityVersioner
 
 		private void	SelectVersionsSuperiorOrEqual(object raw)
 		{
-			string[]	versions = DatabaseMeta.GetDatabase().UnityVersions;
-			string		majorVersion = (string)raw;
-			int			majorVersionInt = int.Parse(majorVersion);
+			object[]		data = (object[])raw;
+			EventModifiers	modifiers = (EventModifiers)data[0];
+			string			majorVersion = (string)data[1];
+			int				majorVersionInt = int.Parse(majorVersion);
+			string[]		versions = DatabaseMeta.GetDatabase().UnityVersions;
 
-			this.activeUnityVersions.Clear();
+			if ((modifiers & EventModifiers.Shift) == 0)
+				this.activeUnityVersions.Clear();
 
 			for (int i = 0, max = versions.Length; i < max; ++i)
 			{
@@ -984,10 +1126,13 @@ namespace NGUnityVersioner
 
 		private void	SelectVersionsEqual(object raw)
 		{
-			string[]	versions = DatabaseMeta.GetDatabase().UnityVersions;
-			string		version = (string)raw;
+			object[]		data = (object[])raw;
+			EventModifiers	modifiers = (EventModifiers)data[0];
+			string			version = (string)data[1];
+			string[]		versions = DatabaseMeta.GetDatabase().UnityVersions;
 
-			this.activeUnityVersions.Clear();
+			if ((modifiers & EventModifiers.Shift) == 0)
+				this.activeUnityVersions.Clear();
 
 			for (int i = 0, max = versions.Length; i < max; ++i)
 			{
@@ -998,8 +1143,9 @@ namespace NGUnityVersioner
 			}
 		}
 
-		private void	SelectLowestOfEachVersion()
+		private void	SelectLowestOfEachVersion(object raw)
 		{
+			EventModifiers				modifiers = (EventModifiers)raw;
 			string[]					versions = DatabaseMeta.GetDatabase().UnityVersions;
 			Dictionary<string, string>	lowestVersions = new Dictionary<string, string>();
 
@@ -1026,13 +1172,16 @@ namespace NGUnityVersioner
 				}
 			}
 
-			this.activeUnityVersions.Clear();
+			if ((modifiers & EventModifiers.Shift) == 0)
+				this.activeUnityVersions.Clear();
+
 			foreach (string version in lowestVersions.Values)
 				this.activeUnityVersions.Add(version);
 		}
 
-		private void	SelectHighestOfEachVersion()
+		private void	SelectHighestOfEachVersion(object raw)
 		{
+			EventModifiers				modifiers = (EventModifiers)raw;
 			string[]					versions = DatabaseMeta.GetDatabase().UnityVersions;
 			Dictionary<string, string>	highestVersions = new Dictionary<string, string>();
 
@@ -1059,13 +1208,16 @@ namespace NGUnityVersioner
 				}
 			}
 
-			this.activeUnityVersions.Clear();
+			if ((modifiers & EventModifiers.Shift) == 0)
+				this.activeUnityVersions.Clear();
+
 			foreach (string version in highestVersions.Values)
 				this.activeUnityVersions.Add(version);
 		}
 
-		private void	SelectAboveCurrentVersion()
+		private void	SelectAboveCurrentVersion(object raw)
 		{
+			EventModifiers	modifiers = (EventModifiers)raw;
 			List<string>	versions = new List<string>(DatabaseMeta.GetDatabase().UnityVersions);
 
 			versions.Add(Application.unityVersion);
@@ -1079,7 +1231,9 @@ namespace NGUnityVersioner
 				{
 					--i;
 
-					this.activeUnityVersions.Clear();
+					if ((modifiers & EventModifiers.Shift) == 0)
+						this.activeUnityVersions.Clear();
+
 					for (; i >= 0; --i)
 						this.activeUnityVersions.Add(versions[i]);
 
@@ -1100,7 +1254,6 @@ namespace NGUnityVersioner
 
 		private void	UpdateDatabase()
 		{
-			AssemblyUsages.debug = DebugItems.WatchTime;
 			DatabaseMeta	db = DatabaseMeta.GetDatabase();
 
 			foreach (var pair in UnityInstalls.EachInstall)

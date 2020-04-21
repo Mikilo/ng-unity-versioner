@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.4.1] - 2020-04-08
+### Added
+- Meta versions of Unity:
+2017.4.38f1, 2017.4.39f1,
+2018.4.19f1, 2018.4.20f1, 2018.4.21f1,
+2019.3.5f1, 2019.3.6f1, 2019.3.7f1, 2019.3.8f1, 2019.3.9f1, 2019.3.10f1,
+2020.1.0b2, 2020.1.0b3, 2020.1.0b4, 2020.1.0b5,
+2020.2.0a7.
+
+### Changed
+- Target framework .NET 3.5.
+
 ## [0.4.0] - 2020-03-11
 ### Added
 - Meta versions of Unity:

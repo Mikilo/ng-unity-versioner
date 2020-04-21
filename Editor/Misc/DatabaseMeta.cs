@@ -83,22 +83,20 @@ namespace NGUnityVersioner
 
 		public	DatabaseMeta(string filepath)
 		{
-			FileStream	fileStream = File.Open(filepath, FileMode.Open, FileAccess.Read);
+			FileStream		fileStream = File.Open(filepath, FileMode.Open, FileAccess.Read);
+			BinaryReader	fileReader = new BinaryReader(fileStream, Encoding.UTF8);
 
-			using (BinaryReader fileReader = new BinaryReader(fileStream, Encoding.UTF8, true))
+			this.unityVersions = new string[fileReader.ReadInt32()];
+			this.metaOffsets = new long[this.unityVersions.Length];
+
+			for (int i = 0, max = this.unityVersions.Length; i < max; ++i)
 			{
-				this.unityVersions = new string[fileReader.ReadInt32()];
-				this.metaOffsets = new long[this.unityVersions.Length];
-
-				for (int i = 0, max = this.unityVersions.Length; i < max; ++i)
-				{
-					this.metaOffsets[i] = fileReader.ReadInt64();
-					this.unityVersions[i] = fileReader.ReadString();
-				}
-
-				this.sharedTableOffset = fileReader.BaseStream.Position;
-				this.unityMeta = new UnityMeta[0];
+				this.metaOffsets[i] = fileReader.ReadInt64();
+				this.unityVersions[i] = fileReader.ReadString();
 			}
+
+			this.sharedTableOffset = fileReader.BaseStream.Position;
+			this.unityMeta = new UnityMeta[0];
 
 			this.constructingThread = new Thread(new ParameterizedThreadStart(this.ConstructDatabase))
 			{
@@ -130,24 +128,23 @@ namespace NGUnityVersioner
 
 				if (this.databaseStream != null)
 				{
-					using (BinaryReader reader = new BinaryReader(this.databaseStream, Encoding.UTF8, true))
+					BinaryReader	reader = new BinaryReader(this.databaseStream, Encoding.UTF8);
+
+					for (int i = 0, max = this.unityVersions.Length; i < max; ++i)
 					{
-						for (int i = 0, max = this.unityVersions.Length; i < max; ++i)
+						if (this.unityVersions[i] == version)
 						{
-							if (this.unityVersions[i] == version)
-							{
-								reader.BaseStream.Position = this.metaOffsets[i];
+							reader.BaseStream.Position = this.metaOffsets[i];
 
-								UnityMeta		meta = new UnityMeta(reader, this.sharedTable);
-								List<UnityMeta>	result = new List<UnityMeta>(this.unityMeta);
+							UnityMeta		meta = new UnityMeta(reader, this.sharedTable);
+							List<UnityMeta>	result = new List<UnityMeta>(this.unityMeta);
 
-								result.Add(meta);
-								result.Sort((a, b) => Utility.CompareVersion(a.Version, b.Version));
+							result.Add(meta);
+							result.Sort((a, b) => Utility.CompareVersion(a.Version, b.Version));
 
-								this.unityMeta = result.ToArray();
+							this.unityMeta = result.ToArray();
 
-								return meta;
-							}
+							return meta;
 						}
 					}
 				}
@@ -225,25 +222,35 @@ namespace NGUnityVersioner
 
 					fileStream.Position = this.sharedTableOffset;
 
-					decompressionStream.CopyTo(databaseStream);
-					databaseStream.Seek(0L, SeekOrigin.Begin);
+					const int	BufferSize = 1 << 16; // 64kB
+					byte[]		buffer = new byte[BufferSize];
+					int			n = decompressionStream.Read(buffer, 0, BufferSize);
 
-					using (BinaryReader reader = new BinaryReader(databaseStream, Encoding.UTF8, true))
+					while (n == BufferSize)
 					{
-						this.sharedTable = new SharedTable(reader);
-
-						List<UnityMeta>	result = new List<UnityMeta>(this.metaOffsets.Length);
-
-						for (int i = 0, max = this.metaOffsets.Length; i < max; ++i)
-						{
-							reader.BaseStream.Position = this.metaOffsets[i];
-							result.Add(new UnityMeta(reader, this.sharedTable));
-						}
-
-						result.Sort((a, b) => Utility.CompareVersion(a.Version, b.Version));
-						this.unityMeta = result.ToArray();
+						databaseStream.Write(buffer, 0, n);
+						n = decompressionStream.Read(buffer, 0, BufferSize);
 					}
 
+					if (n > 0)
+						databaseStream.Write(buffer, 0, n);
+					databaseStream.Seek(0L, SeekOrigin.Begin);
+
+					BinaryReader	reader = new BinaryReader(databaseStream, Encoding.UTF8);
+
+					this.sharedTable = new SharedTable(reader);
+
+					List<UnityMeta>	result = new List<UnityMeta>(this.metaOffsets.Length);
+
+					for (int i = 0, max = this.metaOffsets.Length; i < max; ++i)
+					{
+						reader.BaseStream.Position = this.metaOffsets[i];
+						result.Add(new UnityMeta(reader, this.sharedTable));
+					}
+
+					result.Sort((a, b) => Utility.CompareVersion(a.Version, b.Version));
+
+					this.unityMeta = result.ToArray();
 					this.databaseStream = databaseStream;
 				}
 			}

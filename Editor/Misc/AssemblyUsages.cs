@@ -1,8 +1,8 @@
 ﻿using Mono.Cecil;
+using NGToolsStandalone_For_NGUnityVersionerEditor;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using UnityEngine;
 
 namespace NGUnityVersioner
@@ -38,8 +38,8 @@ namespace NGUnityVersioner
 		private string[]	assemblies;
 		public string[]		Assemblies { get { return this.assemblies; } }
 		[SerializeField]
-		private string[]	filterNamespaces;
-		public string[]		FilterNamespaces { get { return this.filterNamespaces; } }
+		private FilterText[]	filterNamespaces;
+		public FilterText[]		FilterNamespaces { get { return this.filterNamespaces; } }
 		[SerializeField]
 		private string[]	targetNamespaces;
 		public string[]		TargetNamespaces { get { return this.targetNamespaces; } }
@@ -56,7 +56,7 @@ namespace NGUnityVersioner
 		private TypeReference					lastTypeRef;
 		private bool							lastTypeRefVisibility;
 
-		public static AssemblyUsagesResult[]	CheckCompatibilities(IEnumerable<string> assembliesPath, string[] filterNamespaces, string[] targetNamespaces, IEnumerable<string> unityVersions)
+		public static AssemblyUsagesResult[]	CheckCompatibilities(IEnumerable<string> assembliesPath, FilterText[] filterNamespaces, string[] targetNamespaces, IEnumerable<string> unityVersions)
 		{
 			if (targetNamespaces.Length == 0)
 			{
@@ -64,14 +64,20 @@ namespace NGUnityVersioner
 				return null;
 			}
 
-			List<string>	forHash = new List<string>(assembliesPath);
-			forHash.AddRange(filterNamespaces);
-			forHash.AddRange(targetNamespaces);
-
 			int	hash = 0;
 
-			for (int i = 0, max = forHash.Count; i < max; ++i)
-				hash += forHash[i].GetHashCode();
+			hash += assembliesPath.GetHashCode();
+
+			for (int i = 0, max = filterNamespaces.Length; i < max; ++i)
+			{
+				FilterText	filter = filterNamespaces[i];
+
+				if (filter.active == true)
+					hash += filter.text.GetHashCode() + filter.active.GetHashCode();
+			}
+
+			for (int i = 0, max = targetNamespaces.Length; i < max; ++i)
+				hash += targetNamespaces[i].GetHashCode();
 
 			if (AssemblyUsages.usages == null || AssemblyUsages.lastUsagesHash != hash)
 			{
@@ -127,7 +133,7 @@ namespace NGUnityVersioner
 			return results.ToArray();
 		}
 
-		public static AssemblyUsages	InspectAssembly(IEnumerable<string> assembliesPath, string[] filterNamespaces, string[] targetNamespaces)
+		public static AssemblyUsages	InspectAssembly(IEnumerable<string> assembliesPath, FilterText[] filterNamespaces, string[] targetNamespaces)
 		{
 			AssemblyUsages	result = new AssemblyUsages()
 			{

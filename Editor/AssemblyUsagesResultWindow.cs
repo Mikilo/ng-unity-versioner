@@ -127,9 +127,17 @@ namespace NGUnityVersioner
 
 						for (int j = 0, max2 = result.assemblyUsages.FilterNamespaces.Length; j < max2; ++j)
 						{
+							FilterText	filter = result.assemblyUsages.FilterNamespaces[j];
+
 							if (j > 0)
 								buffer.Append(", ");
-							buffer.Append(Path.GetFileNameWithoutExtension(result.assemblyUsages.FilterNamespaces[j]));
+
+							if (filter.type == Filter.Type.Inclusive)
+								buffer.Append('+');
+							else
+								buffer.Append('-');
+
+							buffer.Append(Path.GetFileNameWithoutExtension(filter.text));
 						}
 
 						EditorGUILayout.TextField("Filtered in namespaces", buffer.ToString());
@@ -162,7 +170,7 @@ namespace NGUnityVersioner
 
 								using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 								{
-									EditorGUILayout.LabelField($"Missing Types ({result.missingTypes.Count})");
+									EditorGUILayout.LabelField("Missing Types (" + result.missingTypes.Count + ")");
 								}
 
 								++EditorGUI.indentLevel;
@@ -195,7 +203,7 @@ namespace NGUnityVersioner
 
 								using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 								{
-									EditorGUILayout.LabelField($"Missing Fields ({result.missingFields.Count})");
+									EditorGUILayout.LabelField("Missing Fields (" + result.missingFields.Count + ")");
 								}
 
 								++EditorGUI.indentLevel;
@@ -219,7 +227,7 @@ namespace NGUnityVersioner
 
 								using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 								{
-									EditorGUILayout.LabelField($"Missing Methods ({result.missingMethods.Count})");
+									EditorGUILayout.LabelField("Missing Methods (" + result.missingMethods.Count + ")");
 								}
 
 								++EditorGUI.indentLevel;

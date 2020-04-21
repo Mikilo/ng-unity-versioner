@@ -8,9 +8,9 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "Mono.Cecil.dll",
         "NGCoreStandalone_For_NGUnityVersioner.dll",
-        "NGCoreStandalone_For_NGUnityVersionerEditor.dll"
+        "NGCoreStandalone_For_NGUnityVersionerEditor.dll",
+        "Unity.Cecil.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

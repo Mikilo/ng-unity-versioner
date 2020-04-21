@@ -19,7 +19,7 @@ namespace NGUnityVersioner
 		public TypeMeta	Resolve(AssemblyMeta assemblyMeta, TypeReference typeRef)
 		{
 			if (typeRef.Namespace.EndsWith(this.Name) == false)
-				throw new Exception($"Mismatch namespace \"{typeRef.Namespace}\".");
+				throw new Exception("Mismatch namespace \"" + typeRef.Namespace + "\".");
 
 			for (int i = 0, max = this.Types.Count; i < max; ++i)
 			{

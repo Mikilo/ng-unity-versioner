@@ -1,7 +1,7 @@
 {
   "name": "com.mikilo.ng-unity-versioner",
   "displayName": "NG Unity Versioner",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "unity": "2017.4",
   "description": "Instantly check your code against any Unity version!",
   "keywords": [
@@ -21,7 +21,7 @@
   ],
   "category": "scripting",
   "author": {
-    "name": "Micha\u00ebl Nguyen",
+    "name": "Michaël Nguyen",
     "email": "support@ngtools.tech",
     "url": "https://assetstore.unity.com/publishers/12138"
   }

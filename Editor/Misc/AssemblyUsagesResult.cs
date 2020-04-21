@@ -1,5 +1,6 @@
 ﻿using Mono.Cecil;
 using NGToolsStandalone_For_NGUnityVersioner;
+using NGToolsStandalone_For_NGUnityVersionerEditor;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -133,9 +134,17 @@ namespace NGUnityVersioner
 
 			for (int j = 0, max2 = this.assemblyUsages.FilterNamespaces.Length; j < max2; ++j)
 			{
+				FilterText	filter = this.assemblyUsages.FilterNamespaces[j];
+
 				if (j > 0)
 					buffer.Append(", ");
-				buffer.Append(Path.GetFileNameWithoutExtension(this.assemblyUsages.FilterNamespaces[j]));
+
+				if (filter.type == Filter.Type.Inclusive)
+					buffer.Append('+');
+				else
+					buffer.Append('-');
+
+				buffer.Append(Path.GetFileNameWithoutExtension(filter.text));
 			}
 			buffer.AppendLine();
 
@@ -159,7 +168,7 @@ namespace NGUnityVersioner
 
 				if (this.missingTypes.Count > 0)
 				{
-					buffer.AppendLine($"  Missing Types ({this.missingTypes.Count})");
+					buffer.AppendLine("  Missing Types (" + this.missingTypes.Count + ")");
 					for (int j = 0, max2 = this.missingTypes.Count; j < max2; ++j)
 					{
 						buffer.Append("    ");
@@ -175,7 +184,7 @@ namespace NGUnityVersioner
 
 				if (this.missingFields.Count > 0)
 				{
-					buffer.AppendLine($"  Missing Fields ({this.missingFields.Count})");
+					buffer.AppendLine("  Missing Fields (" + this.missingFields.Count + ")");
 
 					for (int j = 0, max2 = this.missingFields.Count; j < max2; ++j)
 					{
@@ -192,7 +201,7 @@ namespace NGUnityVersioner
 
 				if (this.missingMethods.Count > 0)
 				{
-					buffer.AppendLine($"  Missing Methods ({this.missingMethods.Count})");
+					buffer.AppendLine("  Missing Methods (" + this.missingMethods.Count + ")");
 
 					for (int j = 0, max2 = this.missingMethods.Count; j < max2; ++j)
 					{
